@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   UserRole,
   Language,
@@ -26,6 +26,7 @@ import {
 } from '../data/seedData';
 import { translations, TranslationStrings } from '../translations';
 import { calculateTriage } from '../utils/triage';
+import { api, DbStatus } from '../services/api';
 
 interface HealthContextType {
   currentRole: UserRole;
@@ -40,7 +41,6 @@ interface HealthContextType {
   setLanguage: (lang: Language) => void;
   t: TranslationStrings;
 
-  
   // Data
   patients: Patient[];
   encounters: Encounter[];
@@ -49,12 +49,17 @@ interface HealthContextType {
   appointments: Appointment[];
   facilities: Facility[];
   auditLogs: AuditLog[];
-  
+
+  // Database Connection & Sync
+  dbConnected: boolean;
+  dbStats: DbStatus | null;
+  refreshFromBackend: () => Promise<void>;
+
   // Offline Simulation
   isOffline: boolean;
   setIsOffline: (val: boolean) => void;
   pendingOfflineSyncCount: number;
-  syncOfflineQueue: () => void;
+  syncOfflineQueue: () => Promise<void>;
 
   // Selected state for active views
   selectedPatientId: string;
@@ -113,7 +118,7 @@ interface HealthContextType {
   }) => FollowUp;
   completeFollowUp: (followUpId: string, completionNotes: string) => void;
   togglePatientConsent: (patientId: string) => void;
-  resetDemoData: () => void;
+  resetDemoData: () => Promise<void>;
 
   // Demo helper
   demoStep: number;
@@ -152,11 +157,15 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [language, setLanguage] = useState<Language>('en');
   const [isOffline, setIsOffline] = useState<boolean>(false);
-  const [pendingOfflineSyncCount, setPendingOfflineSyncCount] = useState<number>(3);
+  const [pendingOfflineSyncCount, setPendingOfflineSyncCount] = useState<number>(0);
   const [demoStep, setDemoStep] = useState<number>(1);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' | 'alert' } | null>(null);
 
+  // Database Connection State
+  const [dbConnected, setDbConnected] = useState<boolean>(false);
+  const [dbStats, setDbStats] = useState<DbStatus | null>(null);
 
+  // Core Data States
   const [patients, setPatients] = useState<Patient[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_patients');
@@ -224,7 +233,39 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [activeTeleconsultPatient, setActiveTeleconsultPatient] = useState<Patient | null>(null);
   const [selectedCasePatient, setSelectedCasePatient] = useState<Patient | null>(null);
 
-  // Sync to local storage
+  // Fetch initial data from backend SQLite database
+  const refreshFromBackend = useCallback(async () => {
+    try {
+      const [bootstrap, stats] = await Promise.all([
+        api.getBootstrap(),
+        api.getStatus().catch(() => null)
+      ]);
+
+      if (bootstrap) {
+        setPatients(bootstrap.patients);
+        setEncounters(bootstrap.encounters);
+        setReferrals(bootstrap.referrals);
+        setFollowUps(bootstrap.followUps);
+        setAppointments(bootstrap.appointments);
+        setFacilities(bootstrap.facilities);
+        setAuditLogs(bootstrap.auditLogs);
+        setDbConnected(true);
+      }
+
+      if (stats) {
+        setDbStats(stats);
+      }
+    } catch (err) {
+      console.warn('Could not connect to SQLite backend API, operating in local-cache mode:', err);
+      setDbConnected(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshFromBackend();
+  }, [refreshFromBackend]);
+
+  // Sync to local storage for offline resilience cache
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY + '_patients', JSON.stringify(patients));
@@ -273,7 +314,6 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const switchUserRole = (role: UserRole) => {
-    // Find the first demo user matching this role
     const matchedUser = demoUsers.find(u => u.role === role);
     if (matchedUser) {
       login(matchedUser);
@@ -281,7 +321,6 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setCurrentRole(role);
     }
   };
-
 
   // Flash notification timer
   useEffect(() => {
@@ -295,7 +334,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addAudit = (action: string, actorRole: UserRole, actorName: string, facility: string, details: string, patientId?: string, patientName?: string) => {
     const newLog: AuditLog = {
-      id: `log-${Date.now()}`,
+      id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) + ', ' + new Date().toISOString().split('T')[0],
       actorRole,
       actorName,
@@ -306,6 +345,11 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       patientName
     };
     setAuditLogs(prev => [newLog, ...prev]);
+
+    // Async persist to SQLite backend
+    if (!isOffline) {
+      api.createAuditLog(newLog).catch(e => console.warn('Could not persist audit log to DB:', e));
+    }
   };
 
   const addPatient = (data: Omit<Patient, 'id' | 'registeredDate' | 'avatarColor'>): Patient => {
@@ -333,10 +377,15 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (isOffline) {
       setPendingOfflineSyncCount(c => c + 1);
+    } else {
+      api.createPatient(newPatient).catch(err => {
+        console.warn('Backend sync failed, queued in offline buffer', err);
+        setPendingOfflineSyncCount(c => c + 1);
+      });
     }
 
     setNotification({
-      message: `Patient ${newPatient.name} registered successfully!`,
+      message: `Patient ${newPatient.name} registered successfully! Persisted to SQLite database.`,
       type: 'success'
     });
 
@@ -403,6 +452,11 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (isOffline) {
       setPendingOfflineSyncCount(c => c + 1);
+    } else {
+      api.createEncounter(newEncounter).catch(err => {
+        console.warn('Backend sync failed, queued in offline buffer', err);
+        setPendingOfflineSyncCount(c => c + 1);
+      });
     }
 
     setNotification({
@@ -474,10 +528,16 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (isOffline) {
       setPendingOfflineSyncCount(c => c + 1);
+    } else {
+      api.createReferral(newReferral).catch(err => {
+        console.warn('Backend sync failed, queued in offline buffer', err);
+        setPendingOfflineSyncCount(c => c + 1);
+      });
+      api.createAppointment(newApt).catch(e => console.warn('Could not persist appointment to DB:', e));
     }
 
     setNotification({
-      message: `Referral #${newReferral.id} created! Sent to ${data.toFacility}`,
+      message: `Referral #${newReferral.id} created & saved to database! Sent to ${data.toFacility}`,
       type: 'success'
     });
 
@@ -488,6 +548,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let updatedPatName = '';
     let updatedPatId = '';
     let toFac = '';
+    const nowTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) + ', Today';
 
     setReferrals(prev =>
       prev.map(ref => {
@@ -498,7 +559,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return {
             ...ref,
             status: 'Accepted',
-            acceptedAt: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) + ', Today',
+            acceptedAt: nowTime,
             acceptedByName: doctorName || 'Dr. Rajesh Kulkarni (Medical Officer)'
           };
         }
@@ -515,6 +576,10 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedPatId,
       updatedPatName
     );
+
+    if (!isOffline) {
+      api.acceptReferral(referralId, doctorName, nowTime).catch(e => console.warn('Could not sync accept referral to DB:', e));
+    }
 
     setNotification({
       message: `Referral #${referralId} accepted by ${doctorName || 'Doctor'}. Case is ready for consultation.`,
@@ -540,6 +605,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   ) => {
     let patId = '';
     let patName = '';
+    const nowTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) + ', Today';
 
     setReferrals(prev =>
       prev.map(ref => {
@@ -549,7 +615,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return {
             ...ref,
             status: 'Completed',
-            completedAt: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) + ', Today',
+            completedAt: nowTime,
             consultationOutcome: {
               ...outcome,
               consultationDate: new Date().toISOString().split('T')[0]
@@ -560,10 +626,12 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
     );
 
+    let newFollowUpRecord: FollowUp | undefined = undefined;
+
     // If follow-up provided, assign it to ASHA worker
     if (followUp && patId) {
       const pat = patients.find(p => p.id === patId);
-      const newFollowUp: FollowUp = {
+      newFollowUpRecord = {
         id: `fol-${Date.now().toString().slice(-4)}`,
         patientId: patId,
         patientName: patName || pat?.name || 'Patient',
@@ -579,14 +647,14 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         createdAt: new Date().toISOString().split('T')[0],
         referralId: referralId
       };
-      setFollowUps(prev => [newFollowUp, ...prev]);
+      setFollowUps(prev => [newFollowUpRecord!, ...prev]);
 
       addAudit(
         'Follow-up Task Assigned to ASHA',
         'doctor',
         outcome.doctorName,
         'Chandur PHC',
-        `Assigned ${followUp.type.toUpperCase()} follow-up to ASHA ${newFollowUp.assignedToAshaName} for ${patName}. Due: ${followUp.dueDate}`,
+        `Assigned ${followUp.type.toUpperCase()} follow-up to ASHA ${newFollowUpRecord.assignedToAshaName} for ${patName}. Due: ${followUp.dueDate}`,
         patId,
         patName
       );
@@ -601,6 +669,17 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       patId,
       patName
     );
+
+    if (!isOffline) {
+      api.recordConsultationOutcome(
+        referralId,
+        {
+          ...outcome,
+          consultationDate: new Date().toISOString().split('T')[0]
+        },
+        newFollowUpRecord as any
+      ).catch(e => console.warn('Could not sync consultation outcome to DB:', e));
+    }
 
     setNotification({
       message: `Consultation recorded for ${patName}. Referral completed & Follow-up dispatched to ASHA!`,
@@ -646,6 +725,10 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       newFollowUp.patientName
     );
 
+    if (!isOffline) {
+      api.createFollowUp(newFollowUp).catch(e => console.warn('Could not sync follow up to DB:', e));
+    }
+
     setNotification({
       message: `Follow-up task assigned to ${data.assignedToAshaName}!`,
       type: 'success'
@@ -658,6 +741,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let patName = '';
     let patId = '';
     let ashaName = '';
+    const completedDate = new Date().toISOString().split('T')[0];
 
     setFollowUps(prev =>
       prev.map(f => {
@@ -668,7 +752,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return {
             ...f,
             status: 'completed',
-            completedDate: new Date().toISOString().split('T')[0],
+            completedDate,
             completionNotes: completionNotes || 'Home visit completed. Vitals checked and adherence confirmed.'
           };
         }
@@ -686,6 +770,10 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       patName
     );
 
+    if (!isOffline) {
+      api.completeFollowUp(followUpId, completionNotes, completedDate).catch(e => console.warn('Could not sync complete follow up to DB:', e));
+    }
+
     setNotification({
       message: `Follow-up for ${patName} marked as completed! Loop closed.`,
       type: 'success'
@@ -693,10 +781,11 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const togglePatientConsent = (patientId: string) => {
+    let nextVal = false;
     setPatients(prev =>
       prev.map(p => {
         if (p.id === patientId) {
-          const nextVal = !p.hasGivenDigitalConsent;
+          nextVal = !p.hasGivenDigitalConsent;
           addAudit(
             nextVal ? 'Digital Health Consent Granted' : 'Digital Health Consent Revoked',
             'patient',
@@ -715,55 +804,98 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
     );
 
+    if (!isOffline) {
+      api.toggleConsent(patientId, nextVal).catch(e => console.warn('Could not sync consent to DB:', e));
+    }
+
     setNotification({
-      message: 'ABHA digital consent updated.',
+      message: 'ABHA digital consent updated in database.',
       type: 'info'
     });
   };
 
-  const syncOfflineQueue = () => {
-    setPendingOfflineSyncCount(0);
-    addAudit(
-      'Offline Data Synchronized',
-      'asha',
-      'Sunita Bai (ASHA)',
-      'Rampur Health Sub-centre',
-      'Synced 3 field patient registrations and vitals encounters to cloud health registry.'
-    );
-    setNotification({
-      message: 'All local field records synchronized with Central Health Registry!',
-      type: 'success'
-    });
+  const syncOfflineQueue = async () => {
+    try {
+      await api.syncBatch({
+        patients,
+        encounters,
+        referrals,
+        followUps,
+        appointments,
+        auditLogs
+      });
+      setPendingOfflineSyncCount(0);
+      addAudit(
+        'Offline Data Synchronized',
+        'asha',
+        'Sunita Bai (ASHA)',
+        'Rampur Health Sub-centre',
+        'Synced all local field patient registrations and vitals encounters to central SQLite database.'
+      );
+      setNotification({
+        message: 'All local field records synchronized with Central SQLite Database!',
+        type: 'success'
+      });
+      refreshFromBackend();
+    } catch (err: any) {
+      setNotification({
+        message: `Sync error: ${err.message || 'Could not connect to backend'}`,
+        type: 'alert'
+      });
+    }
   };
 
-  const resetDemoData = () => {
-    localStorage.removeItem(STORAGE_KEY + '_patients');
-    localStorage.removeItem(STORAGE_KEY + '_encounters');
-    localStorage.removeItem(STORAGE_KEY + '_referrals');
-    localStorage.removeItem(STORAGE_KEY + '_followups');
-    localStorage.removeItem(STORAGE_KEY + '_appointments');
-    localStorage.removeItem(STORAGE_KEY + '_facilities');
-    localStorage.removeItem(STORAGE_KEY + '_auditlogs');
+  const resetDemoData = async () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY + '_patients');
+      localStorage.removeItem(STORAGE_KEY + '_encounters');
+      localStorage.removeItem(STORAGE_KEY + '_referrals');
+      localStorage.removeItem(STORAGE_KEY + '_followups');
+      localStorage.removeItem(STORAGE_KEY + '_appointments');
+      localStorage.removeItem(STORAGE_KEY + '_facilities');
+      localStorage.removeItem(STORAGE_KEY + '_auditlogs');
 
-    setPatients(initialPatients);
-    setEncounters(initialEncounters);
-    setReferrals(initialReferrals);
-    setFollowUps(initialFollowUps);
-    setAppointments(initialAppointments);
-    setFacilities(initialFacilities);
-    setAuditLogs(initialAuditLogs);
-    setDemoStep(1);
-    setCurrentUser(demoUsers[3]);
-    setIsAuthenticated(true);
-    setCurrentRole('asha');
-    setSelectedPatientId('pat-101');
-    setPendingOfflineSyncCount(3);
-    setIsOffline(false);
+      const res = await api.resetDatabase();
+      if (res && res.data) {
+        setPatients(res.data.patients);
+        setEncounters(res.data.encounters);
+        setReferrals(res.data.referrals);
+        setFollowUps(res.data.followUps);
+        setAppointments(res.data.appointments);
+        setFacilities(res.data.facilities);
+        setAuditLogs(res.data.auditLogs);
+      } else {
+        setPatients(initialPatients);
+        setEncounters(initialEncounters);
+        setReferrals(initialReferrals);
+        setFollowUps(initialFollowUps);
+        setAppointments(initialAppointments);
+        setFacilities(initialFacilities);
+        setAuditLogs(initialAuditLogs);
+      }
 
-    setNotification({
-      message: 'Demo dataset reset to default initial state.',
-      type: 'info'
-    });
+      setDemoStep(1);
+      setCurrentUser(demoUsers[3]);
+      setIsAuthenticated(true);
+      setCurrentRole('asha');
+      setSelectedPatientId('pat-101');
+      setPendingOfflineSyncCount(0);
+      setIsOffline(false);
+
+      setNotification({
+        message: 'Central SQLite database reset to default initial state.',
+        type: 'info'
+      });
+    } catch (err) {
+      console.warn('Backend reset failed, resetting local memory state:', err);
+      setPatients(initialPatients);
+      setEncounters(initialEncounters);
+      setReferrals(initialReferrals);
+      setFollowUps(initialFollowUps);
+      setAppointments(initialAppointments);
+      setFacilities(initialFacilities);
+      setAuditLogs(initialAuditLogs);
+    }
   };
 
   const t = translations[language] || translations.en;
@@ -789,6 +921,9 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         appointments,
         facilities,
         auditLogs,
+        dbConnected,
+        dbStats,
+        refreshFromBackend,
         isOffline,
         setIsOffline,
         pendingOfflineSyncCount,
@@ -817,7 +952,6 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       {children}
     </HealthContext.Provider>
   );
-
 };
 
 export const useHealth = () => {

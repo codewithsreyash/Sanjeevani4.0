@@ -1,15 +1,24 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { initDb } from './server/db.ts';
+import { apiRouter } from './server/routes.ts';
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Initialize SQLite database and ensure tables and seed data exist
+try {
+  initDb();
+  console.log('Sanjeevani SQLite database initialized and ready.');
+} catch (err) {
+  console.error('Failed to initialize database:', err);
+}
+
+// Mount REST API router for database operations
+app.use('/api', apiRouter);
 
 // Lazy-initialized GoogleGenAI client
 let aiClient: GoogleGenAI | null = null;

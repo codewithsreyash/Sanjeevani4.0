@@ -22,7 +22,8 @@ import {
   Shield,
   Layers,
   Mic,
-  Volume2
+  Volume2,
+  Database
 } from 'lucide-react';
 import { VoiceAssistant } from './VoiceAssistant';
 import { unlockAudioContext } from '../utils/audioService';
@@ -41,7 +42,9 @@ export const Header: React.FC = () => {
     pendingOfflineSyncCount,
     syncOfflineQueue,
     resetDemoData,
-    notification
+    notification,
+    dbConnected,
+    dbStats
   } = useHealth();
 
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
@@ -122,6 +125,17 @@ export const Header: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-3">
+            {/* Database Persistence Status Badge */}
+            <div
+              className="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-slate-800/90 text-slate-300 border border-slate-700/80 text-[11px]"
+              title={dbStats ? `SQLite Database: ${dbStats.counts.patients} patients, ${dbStats.counts.encounters} encounters, ${dbStats.counts.referrals} referrals persisted` : 'SQLite Database Connected'}
+            >
+              <Database className={`w-3 h-3 ${dbConnected ? 'text-cyan-400 animate-pulse' : 'text-amber-400'}`} />
+              <span className={`font-semibold ${dbConnected ? 'text-cyan-300' : 'text-amber-300'}`}>
+                {dbConnected ? 'SQLite Live' : 'Local DB'}
+              </span>
+            </div>
+
             {/* Offline Sync State (especially for field workers) */}
             <button
               onClick={() => setIsOffline(!isOffline)}
