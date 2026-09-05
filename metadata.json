@@ -1,0 +1,10 @@
+{
+  "name": "Remix Swasthya Setu",
+  "description": "Rural public healthcare continuity network connecting Patients, ASHA workers, ANMs, Doctors, and Administrators with voice assistant and role-segregated portals.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
