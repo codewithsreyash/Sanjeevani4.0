@@ -22,9 +22,17 @@ import {
   Mic,
   Phone,
   HelpCircle,
-  Volume2
+  Volume2,
+  Upload,
+  Eye,
+  Download,
+  FolderOpen
 } from 'lucide-react';
 import { PatientTimelineModal } from './PatientTimelineModal';
+import { EPrescriptionModal } from './EPrescriptionModal';
+import { DocumentUploadModal } from './DocumentUploadModal';
+import { DocumentViewerModal } from './DocumentViewerModal';
+import { PatientDocument } from '../types';
 import patientFamilyImg from '../assets/images/patient_family_wellness_1788025804396.jpg';
 
 export const PatientView: React.FC = () => {
@@ -35,6 +43,7 @@ export const PatientView: React.FC = () => {
     referrals,
     followUps,
     appointments,
+    documents,
     togglePatientConsent,
     setActiveTeleconsultPatient,
     t,
@@ -42,6 +51,15 @@ export const PatientView: React.FC = () => {
   } = useHealth();
 
   const [showTimeline, setShowTimeline] = useState(false);
+  const [showRxModal, setShowRxModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedDocForView, setSelectedDocForView] = useState<PatientDocument | null>(null);
+
+  React.useEffect(() => {
+    const handleOpenUpload = () => setShowUploadModal(true);
+    window.addEventListener('open-abha-upload-modal', handleOpenUpload);
+    return () => window.removeEventListener('open-abha-upload-modal', handleOpenUpload);
+  }, []);
 
   const loc = {
     en: {
@@ -499,6 +517,20 @@ export const PatientView: React.FC = () => {
                           <p className="text-[11px] text-emerald-800 mt-1.5 italic">
                             <strong>{loc.advice}</strong> {ref.consultationOutcome.advice}
                           </p>
+
+                          <div className="mt-3 pt-2.5 border-t border-emerald-200 flex items-center justify-between">
+                            <span className="text-[11px] text-emerald-900 font-semibold flex items-center space-x-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Official e-Rx Card Ready</span>
+                            </span>
+                            <button
+                              onClick={() => setShowRxModal(true)}
+                              className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer flex items-center space-x-1.5 shadow-2xs"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>{language === 'hi' ? 'ई-पर्चा देखें' : language === 'mr' ? 'ई-प्रिस्क्रिप्शन पहा' : 'View e-Prescription'}</span>
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -519,7 +551,16 @@ export const PatientView: React.FC = () => {
                   {t.patientPortal.healthPassport}
                 </h3>
               </div>
-              <span className="text-xs text-slate-500 font-medium">{loc.autoSyncedAbha}</span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowRxModal(true)}
+                  className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center space-x-1.5 shadow-2xs"
+                >
+                  <FileText className="w-3.5 h-3.5 text-teal-700" />
+                  <span>{language === 'hi' ? 'ई-प्रिस्क्रिप्शन कार्ड' : language === 'mr' ? 'ई-प्रिस्क्रिप्शन कार्ड' : 'View E-Prescription Card'}</span>
+                </button>
+                <span className="text-xs text-slate-500 font-medium hidden sm:inline">{loc.autoSyncedAbha}</span>
+              </div>
             </div>
 
             {vitals && (
@@ -582,6 +623,139 @@ export const PatientView: React.FC = () => {
                   )) || <span className="text-slate-500">{loc.none}</span>}
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* ABHA Digital Health Locker & Uploaded Records Card */}
+          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+                  <FolderOpen className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-base font-bold text-slate-900">
+                      {language === 'hi' ? 'ABHA डिजिटल हेल्थ लॉकर' : language === 'mr' ? 'ABHA डिजिटल आरोग्य लॉकर' : 'ABHA Digital Health Locker'}
+                    </h3>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">
+                      {documents.filter((d) => d.patientId === currentPatient.id).length} {language === 'hi' ? 'दस्तावेज़' : language === 'mr' ? 'कागदपत्रे' : 'Records'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {language === 'hi'
+                      ? 'लैब रिपोर्ट, एक्स-रे, सोनोग्राफी और पुराने पर्चे सुरक्षित अपलोड करें'
+                      : language === 'mr'
+                      ? 'लॅब रिपोर्ट्स, एक्स-रे, सोनोग्राफी आणि जुनी प्रिस्क्रिप्शन सुरक्षितपणे अपलोड करा'
+                      : 'Upload & store blood test reports, X-rays, scans and external prescriptions'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-2 shadow-xs hover:shadow-md active:scale-98 shrink-0"
+              >
+                <Upload className="w-4 h-4" />
+                <span>
+                  {language === 'hi' ? 'दस्तावेज़ अपलोड करें' : language === 'mr' ? 'कागदपत्र अपलोड करा' : 'Upload Medical Document'}
+                </span>
+              </button>
+            </div>
+
+            {documents.filter((d) => d.patientId === currentPatient.id).length === 0 ? (
+              <div className="text-center py-8 px-4 bg-slate-50/80 rounded-2xl border-2 border-dashed border-slate-200">
+                <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 mx-auto flex items-center justify-center mb-3">
+                  <Upload className="w-6 h-6" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-800">
+                  {language === 'hi' ? 'कोई दस्तावेज़ अपलोड नहीं है' : language === 'mr' ? 'कोणतेही कागदपत्र अपलोड केलेले नाही' : 'No medical documents uploaded yet'}
+                </h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4">
+                  {language === 'hi'
+                    ? 'अपनी पिछली अस्पताल की पर्ची, खून की जांच रिपोर्ट, या एक्स-रे को यहां सुरक्षित जोड़ें ताकि डॉक्टर टेलीकंसल्ट के दौरान देख सकें।'
+                    : language === 'mr'
+                    ? 'तुमची जुनी हॉस्पिटलची पावती, रक्त तपासणी अहवाल किंवा एक्स-रे सुरक्षितपणे जोडा जेणेकरून डॉक्टर टेलिकन्सल्टेशन दरम्यान पाहू शकतील.'
+                    : 'Attach pathology reports, sonography scans, hospital discharge summaries, or past prescriptions for your doctor to review.'}
+                </p>
+                <button
+                  onClick={() => setShowUploadModal(true)}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold rounded-xl transition-colors shadow-2xs"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{language === 'hi' ? 'पहला दस्तावेज़ अपलोड करें' : language === 'mr' ? 'पहिले कागदपत्र जोडा' : 'Upload First Document'}</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {documents.filter((d) => d.patientId === currentPatient.id).map((doc) => {
+                  const getCategoryBadge = (cat: string) => {
+                    switch (cat) {
+                      case 'lab_report':
+                        return { icon: '🧪', label: 'Lab Report', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+                      case 'radiology_scan':
+                        return { icon: '🩻', label: 'Scan / X-Ray', color: 'bg-cyan-50 text-cyan-700 border-cyan-200' };
+                      case 'prescription':
+                        return { icon: '💊', label: 'Prescription', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+                      case 'discharge_summary':
+                        return { icon: '📋', label: 'Discharge Slip', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+                      case 'vaccination':
+                        return { icon: '💉', label: 'Vaccination', color: 'bg-teal-50 text-teal-700 border-teal-200' };
+                      default:
+                        return { icon: '📄', label: 'Medical Record', color: 'bg-slate-50 text-slate-700 border-slate-200' };
+                    }
+                  };
+                  const meta = getCategoryBadge(doc.category);
+
+                  return (
+                    <div
+                      key={doc.id}
+                      onClick={() => setSelectedDocForView(doc)}
+                      className="bg-slate-50/70 hover:bg-slate-100/80 border border-slate-200 rounded-xl p-3.5 transition-all cursor-pointer flex flex-col justify-between hover:shadow-xs group"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-1 mb-2">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta.color} flex items-center space-x-1`}>
+                            <span>{meta.icon}</span>
+                            <span>{meta.label}</span>
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {new Date(doc.uploadDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                          </span>
+                        </div>
+
+                        <h4 className="text-xs font-bold text-slate-900 group-hover:text-teal-700 transition-colors line-clamp-1">
+                          {doc.title}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                          {doc.issuingFacility || 'District Hospital'}
+                        </p>
+                      </div>
+
+                      <div className="mt-3 pt-2 border-t border-slate-200/70 flex items-center justify-between text-[10px] text-slate-500">
+                        <span className="font-medium uppercase">{doc.fileType} • {doc.fileSize}</span>
+                        <span className="text-teal-700 font-bold flex items-center space-x-1 group-hover:underline">
+                          <Eye className="w-3 h-3" />
+                          <span>View</span>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+              <span className="flex items-center space-x-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
+                <span>ABDM Certified &bull; Encrypted storage linked to {currentPatient.abhaId}</span>
+              </span>
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="text-teal-700 hover:text-teal-800 font-bold text-xs flex items-center space-x-1"
+              >
+                <span>+ Add another document</span>
+              </button>
             </div>
           </div>
         </div>
@@ -718,6 +892,30 @@ export const PatientView: React.FC = () => {
           onClose={() => setShowTimeline(false)}
         />
       )}
+
+      {/* Official ABDM Digital E-Prescription Modal */}
+      <EPrescriptionModal
+        isOpen={showRxModal}
+        onClose={() => setShowRxModal(false)}
+        patient={currentPatient}
+        language={language}
+        referrals={referrals}
+      />
+
+      {/* ABHA Document Upload Modal */}
+      <DocumentUploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        patientId={currentPatient.id}
+        patientName={currentPatient.name}
+      />
+
+      {/* ABHA Document Viewer Modal */}
+      <DocumentViewerModal
+        document={selectedDocForView}
+        onClose={() => setSelectedDocForView(null)}
+        patientName={currentPatient.name}
+      />
     </div>
   );
 };

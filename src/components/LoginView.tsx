@@ -24,18 +24,21 @@ import {
   Layers,
   Mic,
   BookOpen,
-  Info
+  Info,
+  UserPlus,
+  X
 } from 'lucide-react';
 import { SanjeevaniLogo } from './SanjeevaniLogo';
 import ruralHeroImg from '../assets/images/rural_healthcare_hero_1788025759730.jpg';
 import ashaCareImg from '../assets/images/asha_worker_care_1788025776530.jpg';
 import doctorTeleImg from '../assets/images/doctor_teleconsult_1788025790089.jpg';
 import patientFamilyImg from '../assets/images/patient_family_wellness_1788025804396.jpg';
+import districtAdminImg from '../assets/images/district_admin_command.jpg';
 
 type PortalType = 'patient' | 'doctor' | 'admin' | 'field';
 
 export const LoginView: React.FC = () => {
-  const { login, availableUsers, language, setLanguage, t } = useHealth();
+  const { login, availableUsers, language, setLanguage, t, addPatient } = useHealth();
 
   // Active Portal Gateway
   const [activePortal, setActivePortal] = useState<PortalType>('patient');
@@ -48,6 +51,15 @@ export const LoginView: React.FC = () => {
   const [patientError, setPatientError] = useState('');
   const [isAutoLoggingIn, setIsAutoLoggingIn] = useState(false);
   const [autoLoginProfileName, setAutoLoginProfileName] = useState('');
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [regForm, setRegForm] = useState({
+    name: '',
+    age: 26,
+    gender: 'Female' as 'Female' | 'Male' | 'Other',
+    phone: '+91 ',
+    village: 'Rampur',
+    condition: 'General Health & Routine Checkup'
+  });
 
   // Doctor Portal State
   const [doctorHprId, setDoctorHprId] = useState('HPR-MH-DOC-4019');
@@ -97,6 +109,42 @@ export const LoginView: React.FC = () => {
         login(target);
       }, 500);
     }
+  };
+
+  const handleQuickRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regForm.name.trim()) return;
+
+    const newPat = addPatient({
+      name: regForm.name.trim(),
+      age: Number(regForm.age) || 25,
+      gender: regForm.gender,
+      phone: regForm.phone.trim() || '+91 94231 99999',
+      village: regForm.village.trim() || 'Rampur',
+      language: language,
+      linkedAshaName: 'Sunita Bai',
+      linkedAshaPhone: '+91 98230 11223',
+      chronicConditions: regForm.condition ? [regForm.condition] : ['General Care'],
+      medicalHistory: 'Direct self-registration via Citizen Health Portal.',
+      hasGivenDigitalConsent: true
+    });
+
+    setShowRegisterModal(false);
+
+    const newProfile: UserProfile = {
+      id: `user-${newPat.id}`,
+      name: newPat.name,
+      role: 'patient',
+      identifier: newPat.abhaId || `91-${newPat.id.replace('pat-', '')}-0000`,
+      facility: `${newPat.village} Sub-centre`,
+      village: newPat.village,
+      phone: newPat.phone,
+      designation: `Citizen / Registered Patient (${newPat.chronicConditions?.[0] || 'Care Plan'})`,
+      avatarColor: newPat.avatarColor || 'bg-rose-500',
+      linkedPatientId: newPat.id
+    };
+
+    handleSendCitizenOtp(newProfile, true);
   };
 
   const handleVerifyCitizenOtp = (e: React.FormEvent) => {
@@ -448,7 +496,7 @@ export const LoginView: React.FC = () => {
                 ? ashaCareImg
                 : tab.id === 'doctor'
                 ? doctorTeleImg
-                : null;
+                : districtAdminImg;
 
             return (
               <button
@@ -521,64 +569,102 @@ export const LoginView: React.FC = () => {
           {/* 1. CITIZEN & PATIENT PORTAL */}
           {activePortal === 'patient' && (
             <div className="bg-white rounded-2xl border border-rose-200/90 shadow-lg shadow-rose-900/5 p-6 animate-in fade-in zoom-in-95 duration-150">
-              <div className="flex items-center space-x-3 pb-4 border-b border-slate-100 mb-5">
-                <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
-                  <User className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h3 className="font-bold text-base text-slate-900">
-                      Citizen ABHA &amp; Health Locker Portal
-                    </h3>
-                    <span className="bg-rose-50 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded border border-rose-200">
-                      Auto-OTP Demo
-                    </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-5">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                    <User className="w-5 h-5" />
                   </div>
-                  <p className="text-xs text-slate-500">
-                    Access digital prescriptions, vitals chart, teleconsult room, and linked ASHA.
-                  </p>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="font-bold text-base text-slate-900">
+                        Citizen ABHA &amp; Health Locker Portal
+                      </h3>
+                      <span className="bg-rose-50 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded border border-rose-200">
+                        Auto-OTP Demo
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Access digital prescriptions, vitals chart, teleconsult room, and linked ASHA.
+                    </p>
+                  </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowRegisterModal(true)}
+                  className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm shrink-0 self-start sm:self-auto"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>
+                    {language === 'hi'
+                      ? '+ नया मरीज पंजीकरण'
+                      : language === 'mr'
+                      ? '+ नवीन रुग्ण नोंदणी'
+                      : '+ Register New Citizen'}
+                  </span>
+                </button>
               </div>
 
               {!patientOtpSent ? (
                 <div className="space-y-4">
                   <div>
                     <span className="text-[11px] font-bold text-slate-600 block mb-2 flex items-center justify-between">
-                      <span>Click Profile for Auto-OTP &amp; Instant Login:</span>
+                      <span>Click Profile for Auto-OTP &amp; Instant Login ({citizenUsers.length} Patients Available):</span>
                       <span className="text-emerald-700 font-extrabold text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                         OTP 4821 Auto-Filled
                       </span>
                     </span>
-                    <div className="space-y-2">
-                      {citizenUsers.map((pat) => (
-                        <button
-                          key={pat.id}
-                          type="button"
-                          onClick={() => handleSendCitizenOtp(pat, true)}
-                          className="w-full text-left p-3 rounded-xl border border-slate-200 hover:border-rose-400 hover:bg-rose-50/70 text-xs transition-all flex items-center justify-between cursor-pointer group shadow-2xs"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 font-extrabold text-xs flex items-center justify-center group-hover:scale-105 transition-transform">
-                              {pat.name.slice(0, 1)}
-                            </div>
-                            <div>
-                              <div className="font-extrabold text-slate-900 group-hover:text-rose-800 text-xs sm:text-sm">
-                                {pat.name} <span className="font-normal text-slate-500">({pat.village})</span>
+                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                      {citizenUsers.map((pat) => {
+                        const isNew = !['pat-101', 'pat-102', 'pat-103'].includes(pat.linkedPatientId || '');
+                        return (
+                          <button
+                            key={pat.id}
+                            type="button"
+                            onClick={() => handleSendCitizenOtp(pat, true)}
+                            className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between cursor-pointer group shadow-2xs ${
+                              isNew
+                                ? 'border-emerald-300 bg-emerald-50/40 hover:bg-emerald-50/80 hover:border-emerald-400'
+                                : 'border-slate-200 hover:border-rose-400 hover:bg-rose-50/70'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div
+                                className={`w-8 h-8 rounded-lg font-extrabold text-xs flex items-center justify-center group-hover:scale-105 transition-transform ${
+                                  isNew ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-700'
+                                }`}
+                              >
+                                {pat.name.slice(0, 1)}
                               </div>
-                              <div className="text-[10px] text-slate-500 font-mono">
-                                {pat.designation} &bull; Mobile: {pat.phone}
+                              <div>
+                                <div className="font-extrabold text-slate-900 group-hover:text-rose-800 text-xs sm:text-sm flex items-center space-x-1.5">
+                                  <span>{pat.name}</span>
+                                  <span className="font-normal text-slate-500 text-xs">({pat.village})</span>
+                                  {isNew && (
+                                    <span className="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider">
+                                      New
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-slate-500 font-mono">
+                                  {pat.designation} &bull; Mobile: {pat.phone}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-[11px] font-bold text-white bg-rose-600 group-hover:bg-rose-700 px-3 py-1.5 rounded-lg shadow-2xs flex items-center space-x-1 transition-colors">
-                              <span>Auto-Login</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </span>
-                            <span className="text-[9px] text-slate-400 block mt-0.5">Auto OTP (4821)</span>
-                          </div>
-                        </button>
-                      ))}
+                            <div className="text-right">
+                              <span
+                                className={`text-[11px] font-bold text-white px-3 py-1.5 rounded-lg shadow-2xs flex items-center space-x-1 transition-colors ${
+                                  isNew ? 'bg-emerald-600 group-hover:bg-emerald-700' : 'bg-rose-600 group-hover:bg-rose-700'
+                                }`}
+                              >
+                                <span>Auto-Login</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </span>
+                              <span className="text-[9px] text-slate-400 block mt-0.5">Auto OTP (4821)</span>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -809,6 +895,20 @@ export const LoginView: React.FC = () => {
                   <p className="text-xs text-slate-500">
                     Oversight of referral loop closures, disease surveillance, and facility capacity.
                   </p>
+                </div>
+              </div>
+
+              {/* District Command Photo Banner */}
+              <div className="h-32 w-full rounded-xl overflow-hidden mb-4 border border-slate-200 relative shadow-inner">
+                <img
+                  src={districtAdminImg}
+                  alt="District Health Administration"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent"></div>
+                <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-white text-xs font-bold">
+                  <span>Nashik District Health Command HQ</span>
+                  <span className="text-[10px] bg-teal-500/80 text-slate-950 px-2 py-0.5 rounded font-extrabold uppercase">ABDM Active</span>
                 </div>
               </div>
 
@@ -1155,6 +1255,138 @@ export const LoginView: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Register New Citizen Modal */}
+      {showRegisterModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-200">
+            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <UserPlus className="w-5 h-5 text-rose-200" />
+                <h3 className="text-base font-bold">
+                  {language === 'hi'
+                    ? 'नया नागरिक / मरीज पंजीकरण'
+                    : language === 'mr'
+                    ? 'नवीन नागरिक / रुग्ण नोंदणी'
+                    : 'Register New Citizen / Patient'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRegisterModal(false)}
+                className="text-rose-200 hover:text-white p-1 rounded-lg hover:bg-white/10 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickRegister} className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Full Name / पूरा नाम / पूर्ण नाव *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Pooja Deshmukh"
+                  value={regForm.name}
+                  onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 outline-hidden font-medium text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Age / आयु / वय *
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={120}
+                    required
+                    value={regForm.age}
+                    onChange={(e) => setRegForm({ ...regForm, age: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 outline-hidden font-medium text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Gender / लिंग *
+                  </label>
+                  <select
+                    value={regForm.gender}
+                    onChange={(e) => setRegForm({ ...regForm, gender: e.target.value as any })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 outline-hidden font-medium bg-white text-xs"
+                  >
+                    <option value="Female">Female / महिला / स्त्री</option>
+                    <option value="Male">Male / पुरुष</option>
+                    <option value="Other">Other / अन्य / इतर</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Mobile Number / मोबाइल *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="+91 94231 00000"
+                    value={regForm.phone}
+                    onChange={(e) => setRegForm({ ...regForm, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 outline-hidden font-medium font-mono text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Village / गाँव / गाव *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={regForm.village}
+                    onChange={(e) => setRegForm({ ...regForm, village: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 outline-hidden font-medium text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Health Program / Care Need (आरोग्य कार्यक्रम / गरज)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Gestational ANC, Hypertension, General Checkup"
+                  value={regForm.condition}
+                  onChange={(e) => setRegForm({ ...regForm, condition: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 outline-hidden font-medium text-xs"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end space-x-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowRegisterModal(false)}
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-700 font-bold hover:bg-slate-50 cursor-pointer text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold shadow-md cursor-pointer flex items-center space-x-1.5 text-xs"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Register &amp; Instant Login</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { Patient, Encounter, Referral, FollowUp, Appointment, Facility, AuditLog, UserProfile } from '../types';
+import { Patient, Encounter, Referral, FollowUp, Appointment, Facility, AuditLog, UserProfile, PatientDocument } from '../types';
 
 
 export const initialFacilities: Facility[] = [
@@ -663,4 +663,60 @@ export const demoUsers: UserProfile[] = [
     avatarColor: 'bg-slate-900'
   }
 ];
+
+export const initialDocuments: PatientDocument[] = [
+  {
+    id: 'doc-101-1',
+    patientId: 'pat-101',
+    title: 'Obstetric Ultrasound Scan Report (26 Wks ANC)',
+    category: 'radiology_scan',
+    facilityName: 'Igatpuri Rural Hospital Sonography Unit',
+    uploadDate: '2026-08-18',
+    fileType: 'application/pdf',
+    fileSize: '1.4 MB',
+    fileUrl: '',
+    notes: 'Single live intrauterine fetus in cephalic presentation. Normal amniotic fluid index (AFI 14 cm). Estimated gestational age 26 weeks.',
+    abdmVerified: true
+  },
+  {
+    id: 'doc-101-2',
+    patientId: 'pat-101',
+    title: 'Maternal Blood CBC & Urine Albumin Test',
+    category: 'lab_report',
+    facilityName: 'Chandur PHC Diagnostics Lab',
+    uploadDate: '2026-08-25',
+    fileType: 'application/pdf',
+    fileSize: '820 KB',
+    fileUrl: '',
+    notes: 'Hemoglobin: 10.2 g/dL (Mild Anemia). Urine Albumin: 1+ Trace (Consistent with Gestational Hypertension). Fasting Blood Sugar: 88 mg/dL.',
+    abdmVerified: true
+  },
+  {
+    id: 'doc-102-1',
+    patientId: 'pat-102',
+    title: 'HbA1c & Fasting Lipid Panel Lab Report',
+    category: 'lab_report',
+    facilityName: 'Janata Pathology Laboratory & PHC Link',
+    uploadDate: '2026-08-12',
+    fileType: 'application/pdf',
+    fileSize: '650 KB',
+    fileUrl: '',
+    notes: 'HbA1c: 7.8% (Sub-optimal glycemic control). Serum Creatinine: 1.1 mg/dL. Microalbuminuria: Positive.',
+    abdmVerified: true
+  },
+  {
+    id: 'doc-103-1',
+    patientId: 'pat-103',
+    title: 'Pediatric Immunization Record Card (MCP Card)',
+    category: 'vaccination',
+    facilityName: 'Belapur Sub-centre',
+    uploadDate: '2026-07-20',
+    fileType: 'image/jpeg',
+    fileSize: '1.1 MB',
+    fileUrl: '',
+    notes: 'All primary vaccines completed up to 3 years: BCG, OPV 1-3, Pentavalent 1-3, Rotavirus, MR 1 & 2. Due for booster at 5 years.',
+    abdmVerified: true
+  }
+];
+
 

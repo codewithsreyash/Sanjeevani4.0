@@ -165,26 +165,3 @@ export interface UserProfile {
   avatarColor?: string;
   linkedPatientId?: string;
 }
-
-export type DocumentCategory =
-  | 'lab_report'
-  | 'prescription'
-  | 'radiology_scan'
-  | 'discharge_summary'
-  | 'vaccination'
-  | 'identity';
-
-export interface PatientDocument {
-  id: string;
-  patientId: string;
-  title: string;
-  category: DocumentCategory;
-  facilityName?: string;
-  uploadDate: string;
-  fileType: string;
-  fileSize?: string;
-  fileUrl: string;
-  notes?: string;
-  abdmVerified?: boolean;
-}
-

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   UserRole,
   Language,
@@ -12,7 +12,8 @@ import {
   TriagePriority,
   Vitals,
   FollowUpType,
-  UserProfile
+  UserProfile,
+  PatientDocument
 } from '../types';
 import {
   initialPatients,
@@ -22,6 +23,7 @@ import {
   initialAppointments,
   initialFacilities,
   initialAuditLogs,
+  initialDocuments,
   demoUsers
 } from '../data/seedData';
 import { translations, TranslationStrings } from '../translations';
@@ -49,6 +51,7 @@ interface HealthContextType {
   appointments: Appointment[];
   facilities: Facility[];
   auditLogs: AuditLog[];
+  documents: PatientDocument[];
 
   // Database Connection & Sync
   dbConnected: boolean;
@@ -118,6 +121,8 @@ interface HealthContextType {
   }) => FollowUp;
   completeFollowUp: (followUpId: string, completionNotes: string) => void;
   togglePatientConsent: (patientId: string) => void;
+  uploadPatientDocument: (doc: Omit<PatientDocument, 'id' | 'uploadDate'>) => PatientDocument;
+  deletePatientDocument: (docId: string) => void;
   resetDemoData: () => Promise<void>;
 
   // Demo helper
@@ -229,6 +234,15 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
+  const [documents, setDocuments] = useState<PatientDocument[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY + '_documents');
+      return saved ? JSON.parse(saved) : initialDocuments;
+    } catch {
+      return initialDocuments;
+    }
+  });
+
   const [selectedPatientId, setSelectedPatientId] = useState<string>('pat-101');
   const [activeTeleconsultPatient, setActiveTeleconsultPatient] = useState<Patient | null>(null);
   const [selectedCasePatient, setSelectedCasePatient] = useState<Patient | null>(null);
@@ -275,12 +289,13 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       localStorage.setItem(STORAGE_KEY + '_appointments', JSON.stringify(appointments));
       localStorage.setItem(STORAGE_KEY + '_facilities', JSON.stringify(facilities));
       localStorage.setItem(STORAGE_KEY + '_auditlogs', JSON.stringify(auditLogs));
+      localStorage.setItem(STORAGE_KEY + '_documents', JSON.stringify(documents));
       localStorage.setItem(STORAGE_KEY + '_currentUser', JSON.stringify(currentUser));
       localStorage.setItem(STORAGE_KEY + '_isAuth', JSON.stringify(isAuthenticated));
     } catch (e) {
       console.error('Failed to sync to local storage', e);
     }
-  }, [patients, encounters, referrals, followUps, appointments, facilities, auditLogs, currentUser, isAuthenticated]);
+  }, [patients, encounters, referrals, followUps, appointments, facilities, auditLogs, documents, currentUser, isAuthenticated]);
 
   const login = (user: UserProfile) => {
     setCurrentUser(user);
@@ -814,6 +829,56 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
+  const uploadPatientDocument = (docData: Omit<PatientDocument, 'id' | 'uploadDate'>): PatientDocument => {
+    const newDoc: PatientDocument = {
+      ...docData,
+      id: `doc-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      uploadDate: new Date().toISOString()
+    };
+
+    setDocuments((prev) => [newDoc, ...prev]);
+
+    const pt = patients.find((p) => p.id === newDoc.patientId);
+
+    addAudit(
+      'Medical Document Uploaded',
+      currentUser?.role || 'patient',
+      currentUser?.name || 'Citizen',
+      currentUser?.facility || 'ABHA Digital Health Locker',
+      `Uploaded ${newDoc.category.toUpperCase().replace('_', ' ')}: "${newDoc.title}" (${newDoc.fileType.toUpperCase()}, ${newDoc.fileSize})`,
+      newDoc.patientId,
+      pt?.name
+    );
+
+    setNotification({
+      message: `Document "${newDoc.title}" uploaded to ABHA Health Locker successfully.`,
+      type: 'success'
+    });
+
+    return newDoc;
+  };
+
+  const deletePatientDocument = (docId: string) => {
+    const docToDelete = documents.find((d) => d.id === docId);
+    setDocuments((prev) => prev.filter((d) => d.id !== docId));
+
+    if (docToDelete) {
+      addAudit(
+        'Medical Document Deleted',
+        currentUser?.role || 'patient',
+        currentUser?.name || 'Citizen',
+        currentUser?.facility || 'ABHA Digital Health Locker',
+        `Removed document: "${docToDelete.title}"`,
+        docToDelete.patientId
+      );
+
+      setNotification({
+        message: `Document "${docToDelete.title}" deleted from Health Locker.`,
+        type: 'info'
+      });
+    }
+  };
+
   const syncOfflineQueue = async () => {
     try {
       await api.syncBatch({
@@ -854,6 +919,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       localStorage.removeItem(STORAGE_KEY + '_appointments');
       localStorage.removeItem(STORAGE_KEY + '_facilities');
       localStorage.removeItem(STORAGE_KEY + '_auditlogs');
+      localStorage.removeItem(STORAGE_KEY + '_documents');
 
       const res = await api.resetDatabase();
       if (res && res.data) {
@@ -872,6 +938,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setAppointments(initialAppointments);
         setFacilities(initialFacilities);
         setAuditLogs(initialAuditLogs);
+        setDocuments(initialDocuments);
       }
 
       setDemoStep(1);
@@ -895,8 +962,55 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setAppointments(initialAppointments);
       setFacilities(initialFacilities);
       setAuditLogs(initialAuditLogs);
+      setDocuments(initialDocuments);
     }
   };
+
+  // Dynamically compute availableUsers: All registered patients become citizen profiles + staff users from demoUsers
+  const availableUsers = useMemo<UserProfile[]>(() => {
+    // 1. Staff users (Doctor, Admin, ASHA, ANM)
+    const staffUsers = demoUsers.filter((u) => u.role !== 'patient');
+
+    // 2. Map every patient in `patients` state to a citizen UserProfile
+    const citizenProfiles: UserProfile[] = patients.map((p) => {
+      // Find if an initial demo profile existed for this patient
+      const existingDemo = demoUsers.find(
+        (u) => u.role === 'patient' && (u.linkedPatientId === p.id || u.name.toLowerCase() === p.name.toLowerCase())
+      );
+
+      if (existingDemo) {
+        return {
+          ...existingDemo,
+          name: p.name,
+          phone: p.phone || existingDemo.phone,
+          village: p.village || existingDemo.village,
+          identifier: p.abhaId || existingDemo.identifier,
+          linkedPatientId: p.id
+        };
+      }
+
+      // Format custom designation from chronic conditions or registration info
+      const conditionTag =
+        p.chronicConditions && p.chronicConditions.length > 0
+          ? p.chronicConditions[0]
+          : 'Registered Citizen';
+
+      return {
+        id: `user-${p.id}`,
+        name: p.name,
+        role: 'patient' as UserRole,
+        identifier: p.abhaId || `91-${p.id.replace('pat-', '')}-0000`,
+        facility: `${p.village} Sub-centre / Chandur PHC`,
+        village: p.village,
+        phone: p.phone || '+91 94231 00000',
+        designation: `Citizen / Registered Patient (${conditionTag})`,
+        avatarColor: p.avatarColor || 'bg-rose-500',
+        linkedPatientId: p.id
+      };
+    });
+
+    return [...citizenProfiles, ...staffUsers];
+  }, [patients]);
 
   const t = translations[language] || translations.en;
 
@@ -910,7 +1024,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         login,
         logout,
         switchUserRole,
-        availableUsers: demoUsers,
+        availableUsers,
         language,
         setLanguage,
         t,
@@ -942,6 +1056,9 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         assignFollowUp,
         completeFollowUp,
         togglePatientConsent,
+        documents,
+        uploadPatientDocument,
+        deletePatientDocument,
         resetDemoData,
         demoStep,
         setDemoStep,

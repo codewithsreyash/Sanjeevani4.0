@@ -33,6 +33,7 @@ import {
   cleanTextForSpeech,
   stopAllSpeech
 } from '../utils/audioService';
+import { EPrescriptionModal } from './EPrescriptionModal';
 
 interface Message {
   id: string;
@@ -42,7 +43,7 @@ interface Message {
   language: Language;
   action?: {
     label: string;
-    type: 'open_teleconsult' | 'view_patient' | 'view_referrals' | 'call_asha' | 'view_prescriptions';
+    type: 'open_teleconsult' | 'view_patient' | 'view_referrals' | 'call_asha' | 'view_prescriptions' | 'upload_document';
     payload?: any;
   };
 }
@@ -63,6 +64,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
     encounters,
     setActiveTeleconsultPatient,
     setSelectedPatientId,
+    selectedPatientId,
     language: appLanguage,
     setLanguage: setAppLanguage,
     setNotification
@@ -82,6 +84,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
   const [speechSpeed, setSpeechSpeed] = useState<number>(1.2); // Fast 1.2x brisk tempo by default
   const [isTestingAudio, setIsTestingAudio] = useState(false);
   const [audioTestFeedback, setAudioTestFeedback] = useState<'testing' | 'success' | null>(null);
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
 
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -89,11 +92,23 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
   const isSpeakingRef = useRef<boolean>(false);
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
+  const activePatient =
+    patients.find((p) => p.id === currentUser?.linkedPatientId) ||
+    (selectedPatientId ? patients.find((p) => p.id === selectedPatientId) : undefined) ||
+    patients[0];
+
+  const matchedRef = referrals.find((r) => r.patientId === activePatient?.id && r.consultationOutcome);
+  const hasPrescription =
+    activePatient?.id === 'pat-101' ||
+    activePatient?.id === 'pat-102' ||
+    activePatient?.id === 'pat-103' ||
+    !!matchedRef?.consultationOutcome?.prescribedMedicines?.length;
+
   // Synchronize language when app language changes
   useEffect(() => {
     setLanguage(appLanguage);
     if (messages.length <= 1) {
-      const greeting = getInitialGreeting(currentRole, currentUser?.name, appLanguage);
+      const greeting = getInitialGreeting(currentRole, currentUser?.name, appLanguage, hasPrescription, activePatient?.id);
       setMessages([
         {
           id: 'msg-welcome',
@@ -105,14 +120,14 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
         }
       ]);
     }
-  }, [appLanguage, currentRole, currentUser]);
+  }, [appLanguage, currentRole, currentUser, activePatient?.id, hasPrescription]);
 
   const changeLanguage = (newLang: Language) => {
     setLanguage(newLang);
     setAppLanguage(newLang);
     stopSpeaking();
     if (messages.length <= 1) {
-      const greeting = getInitialGreeting(currentRole, currentUser?.name, newLang);
+      const greeting = getInitialGreeting(currentRole, currentUser?.name, newLang, hasPrescription, activePatient?.id);
       setMessages([
         {
           id: 'msg-welcome',
@@ -413,7 +428,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
     setInputText('');
     setTranscript('');
 
-    const activePatient = patients.find((p) => p.id === currentUser?.linkedPatientId) || patients[0];
+    const activePatient =
+      patients.find((p) => p.id === currentUser?.linkedPatientId) ||
+      (selectedPatientId ? patients.find((p) => p.id === selectedPatientId) : undefined) ||
+      patients[0];
 
     let replyText = '';
     let replyAction: Message['action'] | undefined = undefined;
@@ -426,7 +444,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
         followUps,
         appointments,
         encounters,
-        language
+        language,
+        activePatientId: activePatient?.id
       });
       replyText = localResponse.text;
       replyAction = localResponse.action;
@@ -477,7 +496,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
           followUps,
           appointments,
           encounters,
-          language
+          language,
+          activePatientId: activePatient?.id
         });
         replyText = localResponse.text;
         replyAction = localResponse.action;
@@ -508,11 +528,26 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
     lang: Language
   ): Message['action'] | undefined => {
     const q = query.toLowerCase();
+    const matchedRef = referrals.find(r => r.patientId === patient?.id && r.consultationOutcome);
+    const hasRx =
+      patient?.id === 'pat-101' ||
+      patient?.id === 'pat-102' ||
+      patient?.id === 'pat-103' ||
+      !!matchedRef?.consultationOutcome?.prescribedMedicines?.length;
+
     if (q.includes('medicine') || q.includes('दवा') || q.includes('औषध') || q.includes('prescription')) {
-      return {
-        label: lang === 'hi' ? 'दवाइयाँ देखें' : lang === 'mr' ? 'औषध तपशील' : 'View Prescription Details',
-        type: 'view_prescriptions'
-      };
+      if (hasRx) {
+        return {
+          label: lang === 'hi' ? 'दवाइयाँ देखें' : lang === 'mr' ? 'औषध तपशील' : 'View Prescription Details',
+          type: 'view_prescriptions'
+        };
+      } else {
+        return {
+          label: lang === 'hi' ? 'डॉक्टर से परामर्श लें (टेलीकंसल्ट)' : lang === 'mr' ? 'डॉक्टरांशी बोला (टेलिकन्सल्ट)' : 'Start Doctor Teleconsult',
+          type: 'open_teleconsult',
+          payload: { patientId: patient?.id || 'pat-101' }
+        };
+      }
     }
     if (q.includes('doctor') || q.includes('teleconsult') || q.includes('डॉक्टर') || q.includes('ऑनलाइन')) {
       return {
@@ -527,7 +562,13 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
         type: 'call_asha'
       };
     }
-    if (q.includes('history') || q.includes('chart') || q.includes('तपशील') || q.includes('रिकॉर्ड')) {
+    if (q.includes('upload') || q.includes('अपलोड') || (q.includes('document') && q.includes('add')) || q.includes('कागदपत्र')) {
+      return {
+        label: lang === 'hi' ? 'दस्तावेज़ अपलोड करें' : lang === 'mr' ? 'कागदपत्र अपलोड करा' : 'Upload Medical Document',
+        type: 'upload_document'
+      };
+    }
+    if (q.includes('history') || q.includes('chart') || q.includes('तपशील') || q.includes('रिकॉर्ड') || q.includes('document') || q.includes('दस्तावेज़')) {
       return {
         label: lang === 'hi' ? 'स्वास्थ्य रिकॉर्ड देखें' : lang === 'mr' ? 'आरोग्य नोंद पहा' : 'View Patient Chart',
         type: 'view_patient',
@@ -563,6 +604,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
         message: `Calling assigned ASHA worker Sunita Bai (+91 94231 88990)...`
       });
     } else if (action.type === 'view_prescriptions') {
+      setShowPrescriptionModal(true);
+    } else if (action.type === 'upload_document') {
+      window.dispatchEvent(new CustomEvent('open-abha-upload-modal'));
       onClose();
     }
   };
@@ -789,6 +833,59 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
                   >
                     <p className="whitespace-pre-line">{msg.text}</p>
 
+                    {/* Interactive E-Prescription Preview Card if assistant discusses medicines */}
+                    {msg.action?.type === 'view_prescriptions' && (
+                      <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                            ℞
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-teal-950 flex items-center space-x-1.5">
+                              <span>
+                                {language === 'hi'
+                                  ? 'डिजिटल ई-प्रिस्क्रिप्शन कार्ड'
+                                  : language === 'mr'
+                                  ? 'डिजिटल ई-प्रिस्क्रिप्शन कार्ड'
+                                  : 'Digital E-Prescription Card'}
+                              </span>
+                              <span className="text-[10px] bg-teal-200/80 text-teal-900 font-bold px-1.5 py-0.5 rounded">
+                                Official
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-teal-700 font-medium">
+                              {hasPrescription
+                                ? (language === 'hi'
+                                    ? `चांदूर प्राथमिक स्वास्थ्य केंद्र • ${activePatient?.name}`
+                                    : language === 'mr'
+                                    ? `चांदूर प्राथमिक आरोग्य केंद्र • ${activePatient?.name}`
+                                    : `Issued by Chandur PHC • ${activePatient?.name}`)
+                                : (language === 'hi'
+                                    ? `${activePatient?.name} • परामर्श प्रतीक्षेत`
+                                    : language === 'mr'
+                                    ? `${activePatient?.name} • डॉक्टर तपासणी प्रतीक्षेत`
+                                    : `${activePatient?.name} • Doctor Consultation Pending`)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setShowPrescriptionModal(true)}
+                          className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer flex items-center justify-center space-x-1.5 shadow-2xs shrink-0"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>
+                            {language === 'hi'
+                              ? 'पर्चा कार्ड देखें'
+                              : language === 'mr'
+                              ? 'प्रिस्क्रिप्शन कार्ड पहा'
+                              : 'Open Rx Card'}
+                          </span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
                     {/* Action Button if attached */}
                     {msg.action && (
                       <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center gap-2">
@@ -968,6 +1065,15 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
           </form>
         </div>
       </div>
+
+      {/* Official ABDM Digital E-Prescription Card Modal */}
+      <EPrescriptionModal
+        isOpen={showPrescriptionModal}
+        onClose={() => setShowPrescriptionModal(false)}
+        patient={activePatient}
+        language={language}
+        referrals={referrals}
+      />
     </div>
   );
 };
@@ -976,7 +1082,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
 function getInitialGreeting(
   role: UserRole,
   userName?: string,
-  lang: Language = 'en'
+  lang: Language = 'en',
+  hasPrescription: boolean = true,
+  patientId?: string
 ): { text: string; action?: Message['action'] } {
   const name = userName || 'User';
 
@@ -984,7 +1092,9 @@ function getInitialGreeting(
     if (role === 'patient') {
       return {
         text: `नमस्ते ${name}! मैं आपकी संजीवनी स्वास्थ्य सहायक हूँ। आप मुझसे अपने रक्तचाप, दवाइयों के समय, आशा कार्यकर्ता या डॉक्टर अपॉइंटमेंट के बारे में पूछ सकते हैं।`,
-        action: { label: 'दवाइयाँ देखें', type: 'view_prescriptions' }
+        action: hasPrescription
+          ? { label: 'दवाइयाँ देखें', type: 'view_prescriptions' }
+          : { label: 'डॉक्टर से परामर्श लें (टेलीकंसल्ट)', type: 'open_teleconsult', payload: { patientId: patientId || 'pat-101' } }
       };
     } else if (role === 'doctor') {
       return {
@@ -1010,7 +1120,9 @@ function getInitialGreeting(
     if (role === 'patient') {
       return {
         text: `नमस्कार ${name}! मी आपली संजीवनी आरोग्य सहाय्यक आहे. आपण मला रक्तदाब तपासणी, औषधांचे वेळापत्रक, आशा सेविका किंवा डॉक्टरांच्या भेटीबद्दल विचारू शकता.`,
-        action: { label: 'औषधांचे तपशील', type: 'view_prescriptions' }
+        action: hasPrescription
+          ? { label: 'औषधांचे तपशील', type: 'view_prescriptions' }
+          : { label: 'डॉक्टरांशी बोला (टेलिकन्सल्ट)', type: 'open_teleconsult', payload: { patientId: patientId || 'pat-101' } }
       };
     } else if (role === 'doctor') {
       return {
@@ -1032,7 +1144,9 @@ function getInitialGreeting(
   if (role === 'patient') {
     return {
       text: `Hello ${name}! I am Sanjeevani, your personal healthcare companion. You can ask me about your blood pressure readings, doctor prescriptions, appointment timings, or connect with your village ASHA worker.`,
-      action: { label: 'View My Prescriptions', type: 'view_prescriptions' }
+      action: hasPrescription
+        ? { label: 'View My Prescriptions', type: 'view_prescriptions' }
+        : { label: 'Start Doctor Teleconsult', type: 'open_teleconsult', payload: { patientId: patientId || 'pat-101' } }
     };
   } else if (role === 'doctor') {
     return {
@@ -1171,6 +1285,7 @@ function generateContextualResponse(
     appointments: any[];
     encounters: any[];
     language: Language;
+    activePatientId?: string;
   }
 ): { text: string; action?: Message['action'] } {
   const q = query.toLowerCase();
@@ -1203,10 +1318,56 @@ function generateContextualResponse(
   }
 
   // 1. PATIENT QUERIES & UNIVERSAL CLINICAL TOPICS
-  const patient = patients.find((p) => p.id === user?.linkedPatientId) || patients[0];
-  const patientReferral = referrals.find((r) => r.patientId === patient.id);
+  const activePatId = context.activePatientId || user?.linkedPatientId;
+  const patient = (activePatId ? patients.find((p) => p.id === activePatId) : undefined) || patients[0];
+  const matchedReferral = referrals.find((r) => r.patientId === patient.id && r.consultationOutcome);
+  const consultationOutcome = matchedReferral?.consultationOutcome;
+  const patientReferral = matchedReferral || referrals.find((r) => r.patientId === patient.id);
   const patientFollowUp = followUps.find((f) => f.patientId === patient.id);
   const patientAppt = appointments.find((a) => a.patientId === patient.id);
+
+  const isDemoSavita = patient.id === 'pat-101';
+  const isDemoRamesh = patient.id === 'pat-102';
+  const isDemoAnita = patient.id === 'pat-103';
+
+  let activeMedicines: string[] = [];
+  let doctorName = 'Dr. Rajesh Kulkarni (Medical Officer)';
+  let adviceNotes = '';
+  let diagnosisName = '';
+
+  if (consultationOutcome && consultationOutcome.prescribedMedicines?.length > 0) {
+    activeMedicines = consultationOutcome.prescribedMedicines;
+    doctorName = consultationOutcome.doctorName || doctorName;
+    adviceNotes = consultationOutcome.advice || '';
+    diagnosisName = consultationOutcome.diagnosis || '';
+  } else if (isDemoSavita) {
+    activeMedicines = [
+      'एमलोडिपिन (Amlodipine) 5mg - 1 Tab Once Daily (Morning after breakfast)',
+      'आयरन और फोलिक एसिड (IFA) - 1 Tab Daily (After lunch)',
+      'कैल्शियम 500mg - 1 Tab Daily (Night after dinner)'
+    ];
+    doctorName = 'Dr. Rajesh Kulkarni (Medical Officer, Chandur PHC)';
+    diagnosisName = 'Gestational Hypertension (28 Wks ANC)';
+    adviceNotes = 'आयरन और कैल्शियम की गोली में 2 घंटे का अंतर रखें। नमक कम खाएं।';
+  } else if (isDemoRamesh) {
+    activeMedicines = [
+      'Tab Metformin 500mg + Glimepiride 1mg BD (Morning & Night before food)',
+      'Tab Telmisartan 40mg OD (Morning after breakfast)',
+      'Tab Atorvastatin 10mg OD (Night after dinner)'
+    ];
+    doctorName = 'Dr. Rajesh Kulkarni (Medical Officer)';
+    diagnosisName = 'Type-2 Diabetes Mellitus with Grade 1 HTN';
+    adviceNotes = 'नियमित व्यायाम करें और मीठा-नमक कम रखें।';
+  } else if (isDemoAnita) {
+    activeMedicines = [
+      'Syrup Zinc 20mg OD x 14 days',
+      'Syrup Paracetamol 250mg SOS',
+      'ORS Packets (WHO formula)'
+    ];
+    doctorName = 'Dr. Rajesh Kulkarni (Medical Officer)';
+    diagnosisName = 'Acute Viral Gastroenteritis (Resolved)';
+    adviceNotes = 'उबला हुआ पानी पिलाएं और स्वच्छता रखें।';
+  }
 
   // A. Blood Pressure & Vitals
   if (
@@ -1217,24 +1378,67 @@ function generateContextualResponse(
     q.includes('vitals') ||
     q.includes('बीपी')
   ) {
-    const bpSys = patient?.lastVitals?.bpSystolic || 150;
-    const bpDia = patient?.lastVitals?.bpDiastolic || 95;
-
-    if (language === 'hi') {
+    if (!patient?.lastVitals?.bpSystolic) {
+      if (language === 'hi') {
+        return {
+          text: `नमस्ते ${patient.name} जी। आपके रिकॉर्ड में अभी तक कोई रक्तचाप (BP) दर्ज नहीं है। कृपया अपने गाँव ${patient.village || 'रामपुर'} के स्वास्थ्य उप-केंद्र जाएं या अपनी आशा कार्यकर्ता ${patient.linkedAshaName || 'सुनीता बाई'} से प्राथमिक जांच करवाएं।`,
+          action: { label: 'आशा कार्यकर्ता को कॉल करें', type: 'call_asha' }
+        };
+      } else if (language === 'mr') {
+        return {
+          text: `नमस्कार ${patient.name} जी. आपल्या खात्यात अद्याप कोणताही रक्तदाब नोंदवलेला नाही. कृपया आपल्या ${patient.village || 'रामपूर'} गावातील उपकेंद्रात जा किंवा आशा सेविका ${patient.linkedAshaName || 'सुनीता बाई'} यांच्याकडून तपासणी करून घ्या.`,
+          action: { label: 'आशा सेविकेशी संपर्क साधा', type: 'call_asha' }
+        };
+      }
       return {
-        text: `आपका नवीनतम दर्ज रक्तचाप ${bpSys} बटा ${bpDia} mmHg है, जो सामान्य सीमा (120/80) से अधिक है। कृपया डॉक्टर द्वारा सुझाई गई एमलोडिपिन दवा नियमित रूप से लें, भोजन में नमक कम रखें, भरपूर पानी पिएं और यदि सिरदर्द या चक्कर आए तो तुरंत आशा कार्यकर्ता को सूचित करें।`,
-        action: { label: 'प्रिस्क्रिप्शन देखें', type: 'view_prescriptions' }
-      };
-    } else if (language === 'mr') {
-      return {
-        text: `आपला नवीनतम रक्तदाब ${bpSys}/${bpDia} mmHg नोंदवला गेला आहे, जो सामान्य पातळीपेक्षा जास्त आहे. कृपया डॉ. कुलकर्णी यांनी दिलेली एमलोडिपिन औषधे वेळेवर घ्या, आहारात मीठ कमी वापरा आणि विश्रांती घ्या.`,
-        action: { label: 'औषध तपशील पहा', type: 'view_prescriptions' }
+        text: `Hello ${patient.name}. No blood pressure reading has been recorded in your chart yet. Please visit the ${patient.village || 'Rampur'} Health Sub-centre or contact your assigned ASHA worker ${patient.linkedAshaName || 'Sunita Bai'} for a routine vitals check.`,
+        action: { label: 'Call ASHA Worker', type: 'call_asha' }
       };
     }
-    return {
-      text: `Your latest recorded blood pressure is ${bpSys}/${bpDia} mmHg, which is classified as Stage-1 Hypertension. Please take your prescribed Amlodipine regularly, maintain a low-salt diet, stay hydrated, and alert your ASHA worker if you experience headaches or dizziness.`,
-      action: { label: 'View Prescription Details', type: 'view_prescriptions' }
-    };
+
+    const bpSys = patient.lastVitals.bpSystolic;
+    const bpDia = patient.lastVitals.bpDiastolic || 80;
+    const isHigh = bpSys >= 140 || bpDia >= 90;
+
+    if (isHigh) {
+      if (language === 'hi') {
+        return {
+          text: `आपका नवीनतम दर्ज रक्तचाप ${bpSys} बटा ${bpDia} mmHg है, जो सामान्य सीमा (120/80) से अधिक है। कृपया भोजन में नमक कम रखें, भरपूर पानी पिएं, विश्राम करें और सिरदर्द या चक्कर आने पर तुरंत डॉक्टर या आशा कार्यकर्ता को सूचित करें।`,
+          action: activeMedicines.length > 0
+            ? { label: 'प्रिस्क्रिप्शन देखें', type: 'view_prescriptions' }
+            : { label: 'डॉक्टर से बात करें (टेलीकंसल्ट)', type: 'open_teleconsult', payload: { patientId: patient.id } }
+        };
+      } else if (language === 'mr') {
+        return {
+          text: `आपला नवीनतम रक्तदाब ${bpSys}/${bpDia} mmHg नोंदवला गेला आहे, जो सामान्य पातळीपेक्षा जास्त आहे. आहारात मीठ कमी वापरा, विश्रांती घ्या आणि डोकेदुखी किंवा अंधारी आल्यास तातडीने आशा सेविकेला कळवा.`,
+          action: activeMedicines.length > 0
+            ? { label: 'औषध तपशील पहा', type: 'view_prescriptions' }
+            : { label: 'डॉक्टरांशी बोला (टेलिकन्सल्ट)', type: 'open_teleconsult', payload: { patientId: patient.id } }
+        };
+      }
+      return {
+        text: `Your latest recorded blood pressure is ${bpSys}/${bpDia} mmHg, which is elevated. Please maintain a low-sodium diet, stay hydrated, rest, and alert your healthcare worker if you experience dizziness or headaches.`,
+        action: activeMedicines.length > 0
+          ? { label: 'View Prescription Details', type: 'view_prescriptions' }
+          : { label: 'Start Doctor Teleconsult', type: 'open_teleconsult', payload: { patientId: patient.id } }
+      };
+    } else {
+      if (language === 'hi') {
+        return {
+          text: `शुभ समाचार ${patient.name} जी! आपका नवीनतम रक्तचाप ${bpSys} बटा ${bpDia} mmHg सामान्य और स्थिर सीमा में है। स्वस्थ खानपान और नियमित दिनचर्या जारी रखें।`,
+          action: { label: 'स्वास्थ्य रिकॉर्ड देखें', type: 'view_patient', payload: { patientId: patient.id } }
+        };
+      } else if (language === 'mr') {
+        return {
+          text: `आनंदाची बातमी ${patient.name} जी! आपला नवीनतम रक्तदाब ${bpSys}/${bpDia} mmHg सामान्य पातळीत आहे. संतुलित आहार आणि नियमित विश्रांती सुरू ठेवा.`,
+          action: { label: 'आरोग्य नोंद पहा', type: 'view_patient', payload: { patientId: patient.id } }
+        };
+      }
+      return {
+        text: `Good news ${patient.name}! Your latest recorded blood pressure is ${bpSys}/${bpDia} mmHg, which is within the normal and healthy range. Continue your balanced nutrition and lifestyle.`,
+        action: { label: 'View Patient Chart', type: 'view_patient', payload: { patientId: patient.id } }
+      };
+    }
   }
 
   // B. Headache, Dizziness, Blurred Vision (Preeclampsia / High BP Danger Signs)
@@ -1288,32 +1492,86 @@ function generateContextualResponse(
     q.includes('खुराक') ||
     q.includes('dosage')
   ) {
-    if (language === 'hi') {
+    if (activeMedicines.length === 0) {
+      const regCondHi = patient.chronicConditions?.[0] || 'सामान्य स्वास्थ्य जांच';
+      const regCondMr = patient.chronicConditions?.[0] || 'सामान्य आरोग्य तपासणी';
+      const regCondEn = patient.chronicConditions?.[0] || 'General Health Registration';
+
+      if (language === 'hi') {
+        return {
+          text: `नमस्ते ${patient.name} जी। आपकी स्वास्थ्य प्रोफ़ाइल (${regCondHi}) दर्ज है, लेकिन अभी तक डॉक्टर द्वारा कोई दवा (प्रिस्क्रिप्शन) निर्धारित नहीं की गई है। आपका प्राथमिक स्वास्थ्य केंद्र (PHC) में डॉक्टर परामर्श प्रतीक्षेत है। क्या आप अभी मेडिकल ऑफिसर डॉ. राजेश कुलकर्णी के साथ टेलीकंसल्टेशन शुरू करना चाहते हैं या अपनी आशा कार्यकर्ता ${patient.linkedAshaName || 'सुनीता बाई'} से संपर्क करना चाहते हैं?`,
+          action: {
+            label: 'डॉक्टर से परामर्श लें (टेलीकंसल्ट)',
+            type: 'open_teleconsult',
+            payload: { patientId: patient.id }
+          }
+        };
+      } else if (language === 'mr') {
+        return {
+          text: `नमस्कार ${patient.name} जी. आपले आरोग्य प्रोफाइल (${regCondMr}) नोंदवले गेले आहे, परंतु डॉक्टरांकडून अद्याप कोणतेही औषध (प्रिस्क्रिप्शन) सुरू केलेले नाही. आपली प्राथमिक आरोग्य केंद्रात डॉक्टर तपासणी प्रतीक्षेत आहे. आपण आता वैद्यकीय अधिकारी डॉ. राजेश कुलकर्णी यांच्याशी टेलिकन्सल्टेशन सुरू करू शकता किंवा आशा सेविका ${patient.linkedAshaName || 'सुनीता बाई'} यांच्याशी संपर्क साधू शकता.`,
+          action: {
+            label: 'डॉक्टरांशी बोला (टेलिकन्सल्ट)',
+            type: 'open_teleconsult',
+            payload: { patientId: patient.id }
+          }
+        };
+      }
       return {
-        text: `आपकी सक्रिय दवाइयाँ: 
-1. एमलोडिपिन (Amlodipine) 5mg - रोज़ सुबह नाश्ते के बाद 1 गोली (रक्तचाप नियंत्रण के लिए)।
-2. आयरन और फोलिक एसिड (IFA) - रोज़ दोपहर भोजन के बाद 1 गोली (रक्त बढ़ाने के लिए)।
-3. कैल्शियम 500mg - रोज़ रात को भोजन के बाद 1 गोली (हड्डियों व शिशु विकास के लिए)।
-नोट: आयरन और कैल्शियम की गोली एक साथ कभी न लें।`,
+        text: `Hello ${patient.name}. Your primary health registration is active (${regCondEn}), but no prescription medications have been issued by the Medical Officer yet. Your clinical consultation is currently pending. Would you like to start a teleconsultation with Dr. Rajesh Kulkarni or contact your assigned ASHA worker ${patient.linkedAshaName || 'Sunita Bai'}?`,
+        action: {
+          label: 'Start Doctor Teleconsult',
+          type: 'open_teleconsult',
+          payload: { patientId: patient.id }
+        }
+      };
+    }
+
+    if (language === 'hi') {
+      const medListHi = activeMedicines.map((m, i) => `${i + 1}. ${m}`).join('\n');
+      return {
+        text: `नमस्ते ${patient.name} जी। डॉक्टर द्वारा निर्धारित आपकी सक्रिय दवाइयाँ:\n${medListHi}\n${adviceNotes ? `\nडॉक्टर सलाह: ${adviceNotes}` : ''}`,
         action: { label: 'डिजिटल पर्ची देखें', type: 'view_prescriptions' }
       };
     } else if (language === 'mr') {
+      const medListMr = activeMedicines.map((m, i) => `${i + 1}. ${m}`).join('\n');
       return {
-        text: `आपली चालू औषधे:
-1. एमलोडिपिन (Amlodipine) 5mg - दररोज सकाळी नाश्त्यानंतर 1 गोळी (रक्तदाब नियंत्रणासाठी).
-2. आयर्न आणि फॉलिक ॲसिड - दुपारी जेवणानंतर 1 गोळी (रक्तातील हिमोग्लोबिन वाढवण्यासाठी).
-3. कॅल्शियम 500mg - रात्री जेवणानंतर 1 गोळी.
-टीप: आयर्न आणि कॅल्शियमच्या गोळ्या कधीही एकत्र घेऊ नका.`,
+        text: `नमस्कार ${patient.name} जी. डॉक्टरांनी आपल्यासाठी दिलेली चालू औषधे:\n${medListMr}\n${adviceNotes ? `\nवैद्यकीय सल्ला: ${adviceNotes}` : ''}`,
         action: { label: 'ई-प्रिस्क्रिप्शन पहा', type: 'view_prescriptions' }
       };
     }
+    const medListEn = activeMedicines.map((m, i) => `${i + 1}. ${m}`).join('\n');
     return {
-      text: `Your active prescribed medication schedule:
-1. Tablet Amlodipine 5mg: Take 1 tablet once daily in the morning after breakfast for BP control.
-2. Tablet Iron & Folic Acid: Take 1 tablet daily after lunch for maternal hemoglobin.
-3. Tablet Calcium 500mg: Take 1 tablet at night after dinner.
-Important: Always take Iron and Calcium at separate times (at least 2 hours apart).`,
+      text: `Hello ${patient.name}. Active prescription schedule issued by ${doctorName}:\n${medListEn}\n${adviceNotes ? `\nDoctor Advice: ${adviceNotes}` : ''}`,
       action: { label: 'View E-Prescription Card', type: 'view_prescriptions' }
+    };
+  }
+
+  // Document Upload & Medical Records Query
+  if (
+    q.includes('upload') ||
+    q.includes('document') ||
+    q.includes('file') ||
+    q.includes('report') ||
+    q.includes('दस्तावेज़') ||
+    q.includes('अपलोड') ||
+    q.includes('कागदपत्र') ||
+    q.includes('रिपोर्ट') ||
+    q.includes('लॉकर')
+  ) {
+    if (language === 'hi') {
+      return {
+        text: `नमस्ते ${patient.name} जी। आप अपने आभा डिजिटल लॉकर में लैब रिपोर्ट, पुराना डॉक्टर पर्चा या एक्स-रे सीधे अपलोड कर सकते हैं। अपनी प्रोफाइल के "दस्तावेज़ एवं स्वास्थ्य लॉकर" अनुभाग में जाएं और फाइल चुनें।`,
+        action: { label: 'स्वास्थ्य रिकॉर्ड देखें', type: 'view_patient', payload: { patientId: patient.id } }
+      };
+    } else if (language === 'mr') {
+      return {
+        text: `नमस्कार ${patient.name} जी. आपण आपल्या आभा डिजिटल लॉकरमध्ये लॅब रिपोर्ट, जुने डॉक्टरी प्रिस्क्रिप्शन किंवा कागदपत्रे थेट अपलोड करू शकता. "दस्तावेज व आरोग्य लॉकर" विभागात जाऊन फाइल निवडा.`,
+        action: { label: 'आरोग्य नोंद पहा', type: 'view_patient', payload: { patientId: patient.id } }
+      };
+    }
+    return {
+      text: `Hello ${patient.name}. You can easily upload your lab reports, past prescriptions, discharge summaries, or imaging scans to your secure ABHA Digital Health Locker in your patient dashboard.`,
+      action: { label: 'Open Health Records', type: 'view_patient', payload: { patientId: patient.id } }
     };
   }
 

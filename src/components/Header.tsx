@@ -23,7 +23,8 @@ import {
   Layers,
   Mic,
   Volume2,
-  Database
+  Database,
+  FileText
 } from 'lucide-react';
 import { VoiceAssistant } from './VoiceAssistant';
 import { unlockAudioContext } from '../utils/audioService';
@@ -183,6 +184,18 @@ export const Header: React.FC = () => {
                 </button>
               ))}
             </div>
+
+            {/* Docs & Printable PDF Guide */}
+            <a
+              href="/sanjeevani_guide.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-teal-300 hover:text-white transition-colors flex items-center space-x-1.5 cursor-pointer bg-teal-950/60 hover:bg-teal-900/80 px-2.5 py-0.5 rounded-md border border-teal-800/80 text-[11px] font-semibold"
+              title="Open Official Documentation, Q&A Handbook & PDF Guide"
+            >
+              <FileText className="w-3 h-3 text-teal-300" />
+              <span>Docs / PDF Guide</span>
+            </a>
 
             {/* Reset Demo State */}
             <button

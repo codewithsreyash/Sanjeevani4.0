@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sanjeevani 4.0 - Comprehensive Guide, Q&A Handbook & Future Scope</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0f766e;
+      --primary-dark: #115e59;
+      --primary-light: #ccfbf1;
+      --secondary: #0284c7;
+      --accent: #f59e0b;
+      --danger: #e11d48;
+      --success: #10b981;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--text);
+      background-color: var(--bg);
+      line-height: 1.6;
+      padding: 0;
+      margin: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Fixed Top Action Bar (Hidden during Print) */
+    .top-action-bar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(15, 118, 110, 0.95);
+      backdrop-filter: blur(10px);
+      color: white;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .top-action-bar .brand {
+      font-weight: 800;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-print {
+      background: white;
+      color: var(--primary-dark);
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-print:hover {
+      background: #e6fffa;
+      transform: translateY(-1px);
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 40px auto;
+      background: var(--card-bg);
+      padding: 60px 80px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border);
+    }
+
+    /* Header Section */
+    .doc-header {
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 30px;
+      margin-bottom: 40px;
+    }
+
+    .badge-govt {
+      display: inline-block;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+
+    .doc-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: #f1f5f9;
+      padding: 12px 18px;
+      border-radius: 8px;
+    }
+
+    .doc-meta strong {
+      color: var(--text);
+    }
+
+    /* Table of Contents */
+    .toc {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 30px;
+      margin-bottom: 40px;
+    }
+
+    .toc h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .toc ul {
+      list-style-type: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 24px;
+    }
+
+    .toc a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .toc a:hover {
+      text-decoration: underline;
+    }
+
+    /* Headings */
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 40px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-top: 24px;
+      margin-bottom: 10px;
+    }
+
+    h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #334155;
+      margin-top: 18px;
+      margin-bottom: 6px;
+    }
+
+    p {
+      margin-bottom: 14px;
+      font-size: 14px;
+      color: #334155;
+    }
+
+    /* Q&A Cards */
+    .qa-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin-bottom: 16px;
+      transition: all 0.2s ease;
+      page-break-inside: avoid;
+    }
+
+    .qa-card.danger {
+      border-left-color: var(--danger);
+    }
+
+    .qa-card.warning {
+      border-left-color: var(--accent);
+    }
+
+    .qa-card.info {
+      border-left-color: var(--secondary);
+    }
+
+    .qa-question {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .qa-question .q-badge {
+      font-size: 11px;
+      font-weight: 800;
+      background: #e2e8f0;
+      color: #475569;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .qa-answer {
+      font-size: 13.5px;
+      color: #334155;
+    }
+
+    .qa-answer ul, .qa-answer ol {
+      margin-left: 20px;
+      margin-top: 6px;
+      margin-bottom: 8px;
+    }
+
+    .qa-answer li {
+      margin-bottom: 4px;
+    }
+
+    /* Flow Chart / Diagram Box */
+    .flow-diagram {
+      background: #0f172a;
+      color: #38bdf8;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      padding: 20px;
+      border-radius: 10px;
+      overflow-x: auto;
+      margin: 20px 0;
+      line-height: 1.4;
+      white-space: pre;
+    }
+
+    /* Comparison Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      font-size: 13px;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      text-align: left;
+    }
+
+    th {
+      background: #f1f5f9;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    .check {
+      color: var(--success);
+      font-weight: 700;
+    }
+
+    .cross {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    /* Callout Alert */
+    .callout {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 20px 0;
+      font-size: 13.5px;
+      color: #065f46;
+    }
+
+    .callout strong {
+      color: #047857;
+    }
+
+    /* Footer */
+    .doc-footer {
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* Print Specific Formatting for Beautiful PDF Generation */
+    @media print {
+      body {
+        background: white;
+        color: black;
+      }
+
+      .top-action-bar {
+        display: none !important;
+      }
+
+      .container {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+      }
+
+      .qa-card {
+        border: 1px solid #cbd5e1;
+        border-left: 4px solid #0f766e !important;
+        page-break-inside: avoid;
+        margin-bottom: 12px;
+      }
+
+      .flow-diagram {
+        background: #f8fafc;
+        color: #0f172a;
+        border: 1px solid #cbd5e1;
+      }
+
+      h2 {
+        page-break-before: auto;
+      }
+
+      a {
+        text-decoration: none;
+        color: black;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky Action Bar with PDF Print Trigger -->
+  <div class="top-action-bar">
+    <div class="brand">
+      <span>🌿</span>
+      <span>SANJEEVANI 4.0 &mdash; Official Knowledge Base & Documentation</span>
+    </div>
+    <button class="btn-print" onclick="window.print()">
+      <span>📥 Print / Save as PDF (A4)</span>
+    </button>
+  </div>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="doc-header">
+      <span class="badge-govt">ABDM-Compliant Rural Healthcare Platform</span>
+      <h1>Sanjeevani 4.0: Comprehensive Guide & Q&A Handbook</h1>
+      <div class="subtitle">End-to-End System Walkthrough, Cross-Perspective Q&A, and Strategic Future Roadmap</div>
+      
+      <div class="doc-meta">
+        <div><strong>Release Version:</strong> 4.0 (Enterprise)</div>
+        <div><strong>Architecture:</strong> Offline-First + SQLite + Node.js + React 19</div>
+        <div><strong>Standards:</strong> ABDM Milestones M1, M2 & M3</div>
+        <div><strong>Audience:</strong> Evaluators, Clinical Officers, Technical Leads & District Admins</div>
+      </div>
+    </div>
+
+    <!-- Table of Contents -->
+    <div class="toc">
+      <h3>Quick Navigation</h3>
+      <ul>
+        <li><a href="#sec-overview">1. Problem Statement & Overview</a></li>
+        <li><a href="#sec-how-it-works">2. End-to-End Workflow Diagram</a></li>
+        <li><a href="#sec-roles">3. The Five Role Perspectives</a></li>
+        <li><a href="#sec-clinical-qa">4. Clinical & Medical Safety Q&A</a></li>
+        <li><a href="#sec-ai-qa">5. AI Voice & Multilingual Q&A</a></li>
+        <li><a href="#sec-tech-qa">6. Technical & Database Q&A</a></li>
+        <li><a href="#sec-tough-qa">7. Tough Evaluator Questions</a></li>
+        <li><a href="#sec-comparison">8. Comparative Matrix</a></li>
+        <li><a href="#sec-roadmap">9. Strategic Future Scope</a></li>
+      </ul>
+    </div>
+
+    <!-- Section 1: Overview -->
+    <section id="sec-overview">
+      <h2>1. Problem Statement & System Overview</h2>
+      <p>
+        Over 70% of India's rural population resides in villages where specialized medical infrastructure is virtually absent. Frontline health workers (ASHAs and ANMs) are burdened with paper registers, leading to fragmented patient histories, delayed emergency referrals, and high maternal-infant mortality.
+      </p>
+      <p>
+        <strong>Sanjeevani 4.0</strong> solves this by establishing a digital continuity chain from the rural citizen's doorstep to the Sub-centre, Primary Health Centre (PHC), and District Hospital. It equips frontline workers with offline-resilient digital triage tools, connects patients to doctors via WebRTC teleconsultation, formats verifiable ABDM e-Prescriptions, and provides an AI voice assistant in regional languages (Hindi & Marathi).
+      </p>
+
+      <div class="callout">
+        <strong>Key Innovation:</strong> Closed-loop care continuity. Unlike traditional telemedicine where care terminates after the video call, Sanjeevani 4.0 automatically dispatches medications to the pharmacy and assigns scheduled home visit follow-ups to the patient's village ASHA worker.
+      </div>
+    </section>
+
+    <!-- Section 2: How it works -->
+    <section id="sec-how-it-works">
+      <h2>2. End-to-End Workflow: How Things Work</h2>
+      <p>The entire patient care cycle operates across six continuous stages:</p>
+
+      <div class="flow-diagram">
++-----------------------------------------------------------------------------------+
+|                           STEP 1: DOORSTEP SCREENING                              |
+|  ASHA Worker visits rural home -> Enrolls Citizen -> Enters Vitals / Symptoms     |
+|  (Works 100% Offline with Local SQLite/IndexedDB Storage)                         |
++------------------------------------------+----------------------------------------+
+                                           |
+                                           v
++-----------------------------------------------------------------------------------+
+|                        STEP 2: AUTOMATED CLINICAL TRIAGE                          |
+|  System evaluates BP, SpO2, Pulse, Blood Sugar, Pregnancy Trimester               |
+|  -> Green (Routine) | Yellow (Moderate Attention) | Red (Critical / Emergency)    |
++------------------------------------------+----------------------------------------+
+                                           |
+                                           v
++-----------------------------------------------------------------------------------+
+|                     STEP 3: TELECONSULTATION ESCALATION                           |
+|  ASHA/ANM initiates Teleconsult Referral to Chandur PHC / District Hospital       |
+|  Doctor receives real-time alert with complete vitals and patient history         |
++------------------------------------------+----------------------------------------+
+                                           |
+                                           v
++-----------------------------------------------------------------------------------+
+|                  STEP 4: LIVE WEBRTC VIDEO & AUDIO CONSULT                        |
+|  Doctor connects via high-definition camera / audio consultation                  |
+|  Reviews uploaded reports from Citizen's ABHA Health Locker                       |
++------------------------------------------+----------------------------------------+
+                                           |
+                                           v
++-----------------------------------------------------------------------------------+
+|                  STEP 5: OFFICIAL ABDM DIGITAL E-PRESCRIPTION                     |
+|  Doctor signs digital Rx with Diagnosis, Dosages, Dietary Advice, and Follow-up   |
+|  Rx is cryptographically linked to Patient's ABHA ID (M2 ABDM Milestone)         |
++------------------------------------------+----------------------------------------+
+                                           |
+                                           v
++-----------------------------------------------------------------------------------+
+|                     STEP 6: CLOSED-LOOP HOME CARE & AUDIT                         |
+|  Pharmacy dispenses medicines -> Home visit follow-up task auto-assigned to ASHA  |
+|  Patient can ask Voice Assistant in Marathi/Hindi for medicine timings            |
+|  District CMO monitors epidemiological trends on Command Dashboard               |
++-----------------------------------------------------------------------------------+</div>
+    </section>
+
+    <!-- Section 3: Roles -->
+    <section id="sec-roles">
+      <h2>3. The Five Role Perspectives</h2>
+      <p>Sanjeevani 4.0 features strictly segregated role-based portals configured for every tier of public healthcare:</p>
+
+      <div class="qa-card info">
+        <div class="qa-question"><span class="q-badge">ROLE 1</span> Citizen / Patient Portal</div>
+        <div class="qa-answer">
+          View official 14-digit ABHA Card, track multi-stage referral journey, access the <strong>ABHA Digital Health Locker</strong> to upload/view lab reports, view digital e-Prescriptions, tap 24x7 emergency 108 speed-dial, and converse with <strong>Sanjeevani AI</strong> in Marathi, Hindi, or English.
+        </div>
+      </div>
+
+      <div class="qa-card info">
+        <div class="qa-question"><span class="q-badge">ROLE 2</span> ASHA Frontline Worker Portal</div>
+        <div class="qa-answer">
+          Doorstep patient enrollment, vitals screening (BP, Pulse, SpO2, Temp), automated red-flag triage, one-tap teleconsultation escalation, offline queue reconciliation, and assigned home follow-up checklist.
+        </div>
+      </div>
+
+      <div class="qa-card info">
+        <div class="qa-question"><span class="q-badge">ROLE 3</span> ANM (Auxiliary Nurse Midwife) Portal</div>
+        <div class="qa-answer">
+          Sub-centre command overview, high-risk pregnancy radar (ANC schedules, Hemoglobin, TT immunizations), referral triage validation, and sub-centre essential drug stock register.
+        </div>
+      </div>
+
+      <div class="qa-card info">
+        <div class="qa-question"><span class="q-badge">ROLE 4</span> Medical Officer / Doctor Portal</div>
+        <div class="qa-answer">
+          Live triage teleconsultation queue, patient longitudinal electronic medical record (EMR), live WebRTC video consultation room, and structured digital prescription generator with automated ASHA follow-up assignment.
+        </div>
+      </div>
+
+      <div class="qa-card info">
+        <div class="qa-question"><span class="q-badge">ROLE 5</span> District Chief Medical Officer (Admin) Portal</div>
+        <div class="qa-answer">
+          District-wide GIS epidemiological heatmap, real-time bed & ICU occupancy radar, 108 ambulance dispatch status, immutable ABDM audit trail, and automated one-click PDF/Excel governance reports.
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: Clinical QA -->
+    <section id="sec-clinical-qa">
+      <h2>4. Clinical & Medical Safety Q&A</h2>
+
+      <div class="qa-card">
+        <div class="qa-question"><span class="q-badge">Q1</span> How are clinical triage levels (Green, Yellow, Red) computed?</div>
+        <div class="qa-answer">
+          Triage is determined deterministically by combining vitals thresholds with acute symptoms:
+          <ul>
+            <li><strong>Red (Emergency):</strong> Systolic BP &ge; 160 mmHg, Diastolic BP &ge; 100 mmHg, SpO2 &lt; 92%, acute chest pain, active bleeding during pregnancy, or fever with altered mental status.</li>
+            <li><strong>Yellow (High / Moderate Urgency):</strong> Systolic BP 140–159 mmHg, SpO2 92–94%, blood sugar &gt; 200 mg/dL, or high-risk third-trimester pregnancy.</li>
+            <li><strong>Green (Routine):</strong> Stable vitals (BP &lt; 130/85, SpO2 &ge; 97%) scheduled for standard preventative wellness.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="qa-card danger">
+        <div class="qa-question"><span class="q-badge">Q2</span> What happens if a newly registered patient asks the AI about medicines before a doctor consultation?</div>
+        <div class="qa-answer">
+          In Sanjeevani 4.0, the system checks whether a valid completed referral outcome exists. If no doctor consultation has taken place:
+          <ul>
+            <li>The AI <strong>never recites hardcoded medicines</strong> (e.g. Amlodipine or Calcium).</li>
+            <li>It clearly states: <em>"Your clinical consultation is pending with the Medical Officer. No medicines have been prescribed yet."</em></li>
+            <li>It presents an action button: <strong>"Start Doctor Teleconsult"</strong> or <strong>"Call ASHA Worker"</strong>.</li>
+            <li>The E-Prescription modal displays an <em>"Initial Clinical Registration Slip"</em> with status <em>"Doctor Consultation Pending / डॉक्टर तपासणी प्रतीक्षेत"</em>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="qa-card">
+        <div class="qa-question"><span class="q-badge">Q3</span> How does Sanjeevani prevent dangerous medical hallucinations?</div>
+        <div class="qa-answer">
+          The system uses a <strong>dual-engine clinical safety model</strong>:
+          <ol>
+            <li>Cloud Gemini AI operates under strict system guardrails forbidding direct prescription of Schedule-H drugs, antibiotics, or steroids without a licensed doctor's sign-off.</li>
+            <li>If cloud API latency exceeds 1.2s or encounters an error, the platform instantly fails over to an internal, hardcoded clinical rule engine.</li>
+            <li>Emergency keywords (e.g., severe chest pain, unconsciousness, heavy bleeding) bypass conversation and immediately display 108 emergency ambulance and ASHA speed dials.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: AI QA -->
+    <section id="sec-ai-qa">
+      <h2>5. AI Voice & Multilingual Architecture Q&A</h2>
+
+      <div class="qa-card">
+        <div class="qa-question"><span class="q-badge">Q4</span> How does the multilingual voice assistant function on rural low-bandwidth devices?</div>
+        <div class="qa-answer">
+          The voice subsystem is split into three decoupled components:
+          <ul>
+            <li><strong>Speech-to-Text (STT):</strong> Uses the browser's native Web Speech Recognition API with regional BCP-47 tags (<code>mr-IN</code> for Marathi, <code>hi-IN</code> for Hindi, <code>en-IN</code> for Indian English).</li>
+            <li><strong>Clinical Intent Parsing:</strong> Queries are mapped against active patient vitals, registered conditions, and referral states.</li>
+            <li><strong>Speech Synthesis (TTS):</strong> Text is sanitized by stripping asterisks and markdown, normalized to Devanagari numerals where appropriate, and played back using natural Indian accented voices (e.g., Google हिन्दी, Google मराठी).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="qa-card">
+        <div class="qa-question"><span class="q-badge">Q5</span> Can an illiterate villager who cannot read English or Devanagari use the system?</div>
+        <div class="qa-answer">
+          Yes. Non-literate citizens can tap the large microphone button and speak in conversational Marathi or Hindi. The voice assistant speaks the answer aloud. Furthermore, the E-Prescription card includes a <strong>"Listen to Prescription (ऐका)"</strong> button that reads out medication schedules, plus visual sun/moon icons showing morning/night timings.
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 6: Tech QA -->
+    <section id="sec-tech-qa">
+      <h2>6. Technical, Database & Offline-First Q&A</h2>
+
+      <div class="qa-card">
+        <div class="qa-question"><span class="q-badge">Q6</span> What database does Sanjeevani 4.0 use, and why was it chosen?</div>
+        <div class="qa-answer">
+          Sanjeevani 4.0 uses <strong>SQLite 3</strong> (via Node.js native <code>node:sqlite</code> module) storing all records in <code>data/sanjeevani.db</code>.
+          <br/><br/>
+          <strong>Why SQLite?</strong>
+          <ul>
+            <li><strong>Zero-Configuration Edge Deployment:</strong> Operates as a self-contained database file with no external daemon, making it ideal for rural PHC edge servers prone to power outages.</li>
+            <li><strong>Full ACID Transactions:</strong> Guarantees zero data loss or partial writes during sudden power failures.</li>
+            <li><strong>High Performance:</strong> Delivers sub-millisecond query execution on low-cost hardware.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="qa-card warning">
+        <div class="qa-question"><span class="q-badge">Q7</span> How does the Offline-First Synchronization work in areas with zero cell connectivity?</div>
+        <div class="qa-answer">
+          When network connectivity drops:
+          <ol>
+            <li>The app switches to offline cache mode, storing registrations and vitals in <code>localStorage</code>.</li>
+            <li>The UI displays an amber badge: <em>"Offline Mode &mdash; X records queued for sync"</em>.</li>
+            <li>When the ASHA returns to cell coverage, clicking <strong>"Sync Records"</strong> posts the queued records to <code>/api/sync/batch</code>.</li>
+            <li>The SQLite database reconciles the records atomically and appends an audit log entry.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="qa-card">
+        <div class="qa-question"><span class="q-badge">Q8</span> How does Medical Document Upload and the ABHA Health Locker work?</div>
+        <div class="qa-answer">
+          Citizens and health workers can upload PDF documents or photos (JPG, PNG, WebP) up to 10MB, or tap <strong>"Scan with Camera"</strong> to capture photos of prescriptions or lab slips directly via their device camera. Uploaded records are encrypted, categorized (Lab Report, Ultrasound, X-Ray, Past Rx), stored by <code>patientId</code>, and viewable in full resolution with one-click print and download capabilities.
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 7: Tough Evaluator QA -->
+    <section id="sec-tough-qa">
+      <h2>7. Tough Evaluator & Viva Defense Questions</h2>
+
+      <div class="qa-card danger">
+        <div class="qa-question"><span class="q-badge">DEFENSE 1</span> "What if an ASHA worker enters wrong vitals (e.g. 250 mmHg BP) by mistake?"</div>
+        <div class="qa-answer">
+          The platform incorporates a dual barrier:
+          <ol>
+            <li><strong>Client-Side Range Sanitization:</strong> Form inputs enforce physiological boundaries (e.g., BP 50–260 mmHg) and prompt confirmation on extreme values.</li>
+            <li><strong>Clinical Verification by ANM / Doctor:</strong> Emergency red referrals require the receiving Medical Officer to verify vitals and optionally request a live video re-check before issuing medication.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="qa-card danger">
+        <div class="qa-question"><span class="q-badge">DEFENSE 2</span> "How is patient privacy protected under Ayushman Bharat Digital Mission (ABDM)?"</div>
+        <div class="qa-answer">
+          Sanjeevani implements the ABDM <strong>Consent Artifact Framework</strong>:
+          <ul>
+            <li>Patients hold explicit control through a <strong>Give / Revoke Consent</strong> toggle.</li>
+            <li>When consent is revoked, external doctors cannot access historical charts.</li>
+            <li>Every access, consult, and referral change is logged in an immutable, tamper-evident audit trail with actor designation and timestamps.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="qa-card danger">
+        <div class="qa-question"><span class="q-badge">DEFENSE 3</span> "What stops patients from generating fake prescriptions or altering drug dosages?"</div>
+        <div class="qa-answer">
+          Prescriptions are generated exclusively from the authenticated Doctor role session, cryptographically hashed with a UUID tied to the doctor's registration number, and stored server-side. The patient's portal renders a read-only view. Pharmacists verify the prescription ID against the central server before dispensing drugs.
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 8: Comparison Matrix -->
+    <section id="sec-comparison">
+      <h2>8. Comparative Analysis</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Key Feature</th>
+            <th>eSanjeevani / Govt Apps</th>
+            <th>Commercial Apps (Practo, etc.)</th>
+            <th>Sanjeevani 4.0</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Doorstep Screening</strong></td>
+            <td class="cross">&#10008; None (Kiosk-based)</td>
+            <td class="cross">&#10008; None (Self-service)</td>
+            <td class="check">&#10004; Yes (ASHA mobile triage)</td>
+          </tr>
+          <tr>
+            <td><strong>Offline-First Architecture</strong></td>
+            <td class="cross">&#10008; Fails without internet</td>
+            <td class="cross">&#10008; Requires 4G/5G</td>
+            <td class="check">&#10004; Yes (Local SQLite cache & batch sync)</td>
+          </tr>
+          <tr>
+            <td><strong>Multilingual AI Voice</strong></td>
+            <td class="cross">&#10008; Text forms only</td>
+            <td class="cross">&#10008; English/Hindi chatbots</td>
+            <td class="check">&#10004; Yes (Marathi, Hindi, English STT/TTS)</td>
+          </tr>
+          <tr>
+            <td><strong>Closed-Loop Follow-up</strong></td>
+            <td class="cross">&#10008; Terminates after call</td>
+            <td class="cross">&#10008; None</td>
+            <td class="check">&#10004; Yes (Auto-assigned ASHA home visits)</td>
+          </tr>
+          <tr>
+            <td><strong>ABHA Document Locker</strong></td>
+            <td>&#9888; Limited</td>
+            <td class="cross">&#10008; Proprietary silo</td>
+            <td class="check">&#10004; Yes (Camera scan + PDF upload)</td>
+          </tr>
+          <tr>
+            <td><strong>District Command Center</strong></td>
+            <td>&#9888; Static weekly reports</td>
+            <td class="cross">&#10008; Not available</td>
+            <td class="check">&#10004; Yes (Live GIS heatmap + PDF/Excel export)</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 9: Future Scope -->
+    <section id="sec-roadmap">
+      <h2>9. Strategic Future Scope & Product Roadmap</h2>
+      
+      <h3>Phase 1: Near-Term Enhancements (Next 3–6 Months)</h3>
+      <p>
+        <strong>1. Bluetooth BLE Smart Diagnostic Kits:</strong> Direct wireless pairing with digital BP cuffs, pulse oximeters, and glucometers via Web Bluetooth API to eliminate manual data-entry errors.<br/>
+        <strong>2. WhatsApp / SMS Prescription Delivery:</strong> Automatic delivery of bilingual e-Prescription cards to simple feature phones via ABDM SMS Gateway.
+      </p>
+
+      <h3>Phase 2: Medium-Term Horizon (6–12 Months)</h3>
+      <p>
+        <strong>1. 100% On-Device Edge Small Language Models (SLM):</strong> Quantized offline LLMs (e.g. Gemma 2B or Whisper Small) running on rural Android tablets for offline voice clinical reasoning in remote tribal valleys.<br/>
+        <strong>2. AI Epidemiological Outbreak Radar:</strong> Geospatial cluster detection alerting District Health Officers of localized spikes in dengue, malaria, or waterborne diarrhea before an epidemic spreads.
+      </p>
+
+      <h3>Phase 3: Long-Term Horizon (12–24 Months)</h3>
+      <p>
+        <strong>1. Medical Drone Corridor Dispatch:</strong> Integration with state drone corridors to dispatch critical anti-snake venoms, maternal hemorrhage kits, and emergency insulin directly to remote Sub-centres within 20 minutes.<br/>
+        <strong>2. National ABDM M3 Interoperability:</strong> Seamless bidirectional medical record exchange with tertiary AIIMS hospitals and nationwide healthcare networks.
+      </p>
+    </section>
+
+    <!-- Footer -->
+    <div class="doc-footer">
+      Sanjeevani 4.0 &bull; Built for the National Health Mission and Ayushman Bharat Digital Mission (ABDM) &bull; Confidential & Proprietary
+    </div>
+  </div>
+
+</body>
+</html>
